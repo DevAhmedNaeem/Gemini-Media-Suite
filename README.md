@@ -1,19 +1,34 @@
-# ✨ Gemini Watermark Remover
+# ✨ Gemini Media Tools Suite — Watermark Remover & Bulk Image Resizer
 
-This is a premium, high-performance **Gemini Watermark Remover** built using **React, TailwindCSS, and JavaScript (Web Workers)**. It provides instant, completely local, in-browser detection and removal of the Gemini 4-pointed sparkle star watermark from images, with advanced support for multi-threaded bulk folder uploads and ZIP archiving.
+This is a premium, high-performance web application containing a dual-tab media suite: **Gemini Watermark Remover** and **Bulk Image Resizer & Optimizer**. Built purely offline using **React 18, TailwindCSS, and JavaScript Web Workers**, it executes intensive image processes directly inside the browser, safeguarding 100% data privacy with zero server uploads.
 
 ---
 
-## 🚀 Features
+## 📸 Core Utilities
 
-* **⚡ Web Worker Multi-Threading**: Offloads heavy pixel-manipulation, detection, and inpainting algorithms to background Web Workers, keeping the React UI running smoothly at 60fps.
-* **📂 Bulk Folder & Drag-and-Drop Traversal**: Drop individual images or whole folders. Recursively traverses directory entries to load folders while preserving their subfolder structure.
-* **🔍 Multi-Fallback Adaptive Star Detection**: Locates the 4-pointed sparkle star in the bottom-right corner using color neutrality filters, BFS-based connected component labeling (flood fill), average border luminance checks, and 3x3 cardinal density shape verification.
-* **🎨 High-Quality IDW Inpainting**: Fills in the watermark bounding box using Inverse Distance Weighting (IDW) interpolation from surrounding pixels, followed by a customizable edge box-blur transition.
-* **🎚️ Customizable Inpaint Strength**: Allows the user to control the boundary blending intensity to achieve flawless results on both complex and flat backgrounds.
-* **📦 One-Click ZIP Downloader**: Generates and packages processed images back into their original format and subfolder structures using JSZip.
-* **🔒 100% Offline & Private**: No images are uploaded to any server. All processing runs purely client-side in your web browser.
-* **🎉 Premium UI & Confetti**: Features a modern dark-mode glassmorphic interface, micro-animations, real-time batch statistics, and canvas-confetti celebrations upon successful cleanup.
+### 1. 🌟 Gemini Watermark Remover
+Locates and removes the Gemini 4-pointed sparkle star watermark from images:
+* **🔍 Multi-Fallback Adaptive Star Detection**: Locates the sparkle star in the bottom-right corner using color neutrality filters, BFS-based connected component labeling (flood fill), and shape verification.
+* **🎨 High-Quality IDW Inpainting**: Fills in the bounding box using Inverse Distance Weighting (IDW) interpolation from surrounding pixels, capped by an edge-box transition blur.
+* **🎚️ Customizable Inpaint Strength**: Control boundary blending aggressiveness to yield perfect results on both plain and complex textures.
+
+### 2. 📏 Bulk Image Resizer & Optimizer
+A streamlined, premium bulk image resizer tailored for high-speed offline size constraints:
+* **📐 Intuitive Proportion Sizing**: Enter a target **Width (px)**, **Height (px)**, or both. If only one input is provided, the other scales proportionally. If both are defined, the engine fits the image within those boundaries preserving the aspect ratio.
+* **🛡️ No Upscaling Guarantee**: Caps calculated dimensions at the original bounds to prevent upscaling smaller images, protecting image fidelity.
+* **🎯 Target File Size Compression (Binary Search)**: Enter a target limit in KB (e.g. `200 KB`). The Web Worker runs an iterative **binary search** over the canvas export quality parameter `[0.05, 0.95]` to achieve the maximum visual clarity that fits under your size constraint.
+* **🔄 Lossless PNG WebP Fallback**: If a transparent PNG exceeds the target size, the engine automatically converts it to high-density lossy WebP to apply quality compression and hit your size limit.
+* **📂 Directory Tree Preserving ZIP Exporter**: Supports recursively dropping folders and subfolders. Generates a nested ZIP archive matching your exact input directory structure, and automatically updates fallback extensions (e.g. `.png` to `.webp`) to keep system compatibility.
+
+---
+
+## 🚀 Key Features
+
+* **⚡ Web Worker Multi-Threading**: Offloads heavy pixel-manipulation, resizing, and binary-search algorithms to background Web Workers, keeping the React UI running smoothly at 60fps.
+* **📂 Bulk Folder Uploads**: Drop files or entire folders. Recursively traverses directory entries to load folders while preserving their nested structure.
+* **🔒 100% Offline & Private**: All resizing and editing run client-side in the browser using HTML5 OffscreenCanvas. No files are ever sent to an external server.
+* **📊 Compression Statistics**: Displays original total size vs. compressed total size, and calculates exact bandwidth saved.
+* **🎉 Premium UI & Confetti**: Features a modern dark-mode glassmorphic interface, micro-animations, progress indicators, and canvas-confetti completion celebrations.
 
 ---
 
@@ -28,7 +43,6 @@ This is a premium, high-performance **Gemini Watermark Remover** built using **R
 * **Canvas Confetti** (Completion celebration)
 
 ---
-
 
 ## ⚡ Getting Started
 
@@ -51,7 +65,7 @@ Make sure you have **Node.js** (v18 or higher) installed on your system.
 
 3. **Start the local development server**:
    ```bash
-   npm run dev
+   npm.cmd run dev
    ```
 
-4. Open [http://localhost:3001](http://localhost:3001) (or the port specified in your console) in your web browser.
+4. Open [http://localhost:3001](http://localhost:3001) in your browser.
