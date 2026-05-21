@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Sparkles, Download, UploadCloud, FolderClosed, Check, X, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Sparkles, Download, UploadCloud, FolderClosed, Check, X, Loader2, AlertCircle, RefreshCw, Scale } from 'lucide-react';
 import JSZip from 'jszip';
 import confetti from 'canvas-confetti';
 
 // Import our custom bulk processor hook
 import { useBulkProcessor } from './hooks/useBulkProcessor';
+import ImageResizer from './components/ImageResizer';
 
 // Helper: recursively traverse directory entries for drag and drop folder uploads
 const traverseFileTree = (item, path = '') => {
@@ -122,6 +123,7 @@ export default function App() {
     startProcessing
   } = useBulkProcessor();
 
+  const [activeTab, setActiveTab] = useState('watermark');
   const [isDragging, setIsDragging] = useState(false);
   const [isZipping, setIsZipping] = useState(false);
   const fileInputRef = useRef(null);
@@ -284,13 +286,41 @@ export default function App() {
 
       {/* ZONE A — TOP HEADER */}
       <header className="h-[60px] border-b border-[#1C1C24] bg-[#0D0D10]/80 backdrop-blur-md px-6 flex items-center justify-between shrink-0 sticky top-0 z-40 relative">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#7C3AED] to-[#4F46E5] flex items-center justify-center shadow-lg shadow-[#7C3AED]/20">
-            <Sparkles className="w-4 h-4 text-white animate-pulse" />
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#7C3AED] to-[#4F46E5] flex items-center justify-center shadow-lg shadow-[#7C3AED]/20">
+              <Sparkles className="w-4 h-4 text-white animate-pulse" />
+            </div>
+            <span className="font-semibold text-base tracking-tight text-white font-display text-glow hidden sm:block">
+              Gemini Tools
+            </span>
           </div>
-          <span className="font-semibold text-base tracking-tight text-white">
-            Water Mark Remover
-          </span>
+
+          {/* Navigation Tab Bar */}
+          <div className="flex bg-[#121218]/90 border border-[#2E2E38] rounded-xl p-1 shrink-0">
+            <button
+              onClick={() => setActiveTab('watermark')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
+                activeTab === 'watermark'
+                  ? 'bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] text-white shadow-md shadow-[#7C3AED]/15'
+                  : 'text-[#888896] hover:text-[#E8E8F0] hover:bg-[#1E1E26]'
+              }`}
+            >
+              <Sparkles size={13} />
+              Watermark Remover
+            </button>
+            <button
+              onClick={() => setActiveTab('resizer')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
+                activeTab === 'resizer'
+                  ? 'bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] text-white shadow-md shadow-[#7C3AED]/15'
+                  : 'text-[#888896] hover:text-[#E8E8F0] hover:bg-[#1E1E26]'
+              }`}
+            >
+              <Scale size={13} />
+              Image Resizer
+            </button>
+          </div>
         </div>
 
         {/* Absolutely Centered Credit Badge */}
@@ -301,7 +331,7 @@ export default function App() {
         </div>
 
         {/* Header Clean Download Shortcut */}
-        {stats.removed > 0 && !isProcessing && (
+        {activeTab === 'watermark' && stats.removed > 0 && !isProcessing && (
           <button
             onClick={handleDownloadAll}
             disabled={isZipping}
@@ -324,7 +354,8 @@ export default function App() {
 
       {/* MAIN CONTAINER */}
       <main className="flex-1 flex overflow-hidden">
-        {queue.length === 0 ? (
+        {activeTab === 'watermark' ? (
+          queue.length === 0 ? (
           /* ZONE B — UPLOAD AREA (empty state) */
           <div className="flex-1 flex items-center justify-center p-8">
             <div
@@ -595,6 +626,8 @@ export default function App() {
               </div>
             </div>
           </div>
+        )) : (
+          <ImageResizer />
         )}
       </main>
 
