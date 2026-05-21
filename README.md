@@ -29,13 +29,6 @@ This is a premium, high-performance **Gemini Watermark Remover** built using **R
 
 ---
 
-## 📷 Preview
-
-*A sleek, modern dark-mode dashboard displaying real-time processing queues, bulk upload areas, and interactive inpainting controls.*
-
-![Dashboard Preview](https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80)
-
----
 
 ## ⚡ Getting Started
 
