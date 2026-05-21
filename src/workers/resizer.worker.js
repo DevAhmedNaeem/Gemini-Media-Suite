@@ -1,126 +1,118 @@
-// Clean self-contained resizer Web Worker using OffscreenCanvas and createImageBitmap.
-// Runs off the main UI thread to prevent UI freezing during large batch resizing operations.
+// Self-contained resizer Web Worker rewritten for target-size binary-search quality compression.
+// Keeps UI fully responsive off the main thread while doing intensive canvas adjustments.
 
 self.onmessage = async function (e) {
   const {
     file,
-    mode,
     width,
     height,
-    maintainAspectRatio,
-    percentage,
-    maxDimension,
-    format,
-    quality
+    targetSizeKb = 200
   } = e.data;
 
   try {
     // 1. Create an ImageBitmap from the image file/blob
     const imgBitmap = await createImageBitmap(file);
+    const ow = imgBitmap.width;
+    const oh = imgBitmap.height;
 
-    // 2. Calculate the target dimensions based on the chosen mode
-    let targetWidth = imgBitmap.width;
-    let targetHeight = imgBitmap.height;
+    // 2. Calculate the target dimensions (no upscaling allowed)
+    let tw = ow;
+    let th = oh;
 
-    switch (mode) {
-      case 'width':
-        if (width && width > 0) {
-          targetWidth = width;
-          targetHeight = Math.round((imgBitmap.height / imgBitmap.width) * width);
-        }
-        break;
-
-      case 'height':
-        if (height && height > 0) {
-          targetHeight = height;
-          targetWidth = Math.round((imgBitmap.width / imgBitmap.height) * height);
-        }
-        break;
-
-      case 'both':
-        if (width && height && width > 0 && height > 0) {
-          if (maintainAspectRatio) {
-            const scale = Math.min(width / imgBitmap.width, height / imgBitmap.height);
-            targetWidth = Math.round(imgBitmap.width * scale);
-            targetHeight = Math.round(imgBitmap.height * scale);
-          } else {
-            targetWidth = width;
-            targetHeight = height;
-          }
-        }
-        break;
-
-      case 'percent':
-        if (percentage && percentage > 0) {
-          const factor = percentage / 100;
-          targetWidth = Math.round(imgBitmap.width * factor);
-          targetHeight = Math.round(imgBitmap.height * factor);
-        }
-        break;
-
-      case 'max':
-        if (maxDimension && maxDimension > 0) {
-          if (imgBitmap.width > imgBitmap.height) {
-            targetWidth = maxDimension;
-            targetHeight = Math.round((imgBitmap.height / imgBitmap.width) * maxDimension);
-          } else {
-            targetHeight = maxDimension;
-            targetWidth = Math.round((imgBitmap.width / imgBitmap.height) * maxDimension);
-          }
-        }
-        break;
-
-      default:
-        break;
+    if (width && height && width > 0 && height > 0) {
+      // Both dimensions specified: scale to fit while maintaining aspect ratio
+      const scale = Math.min(width / ow, height / oh);
+      tw = Math.round(ow * scale);
+      th = Math.round(oh * scale);
+    } else if (width && width > 0) {
+      // Only width specified: height scales proportionally
+      tw = width;
+      th = Math.round((oh / ow) * width);
+    } else if (height && height > 0) {
+      // Only height specified: width scales proportionally
+      th = height;
+      tw = Math.round((ow / oh) * height);
     }
 
-    // Prevent dimensions from rounding down to zero
-    targetWidth = Math.max(1, targetWidth);
-    targetHeight = Math.max(1, targetHeight);
+    // Never upscale a smaller image
+    if (tw > ow || th > oh) {
+      tw = ow;
+      th = oh;
+    }
 
-    // 3. Create OffscreenCanvas and draw the resized image bitmap
-    const canvas = new OffscreenCanvas(targetWidth, targetHeight);
+    // Ensure we don't scale down to 0
+    tw = Math.max(1, tw);
+    th = Math.max(1, th);
+
+    // 3. Create OffscreenCanvas and draw the image bitmap
+    const canvas = new OffscreenCanvas(tw, th);
     const ctx = canvas.getContext('2d');
 
     // High quality scaling settings
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(imgBitmap, 0, 0, targetWidth, targetHeight);
+    ctx.drawImage(imgBitmap, 0, 0, tw, th);
 
-    // 4. Resolve output MIME type
-    let mimeType = file.type || 'image/jpeg';
-    if (format && format !== 'original') {
-      if (format === 'jpeg') mimeType = 'image/jpeg';
-      else if (format === 'png') mimeType = 'image/png';
-      else if (format === 'webp') mimeType = 'image/webp';
-    }
-
-    // 5. Convert OffscreenCanvas to Blob with quality settings
-    const qualityVal = quality ? quality / 100 : 0.92;
-    const resizedBlob = await canvas.convertToBlob({
-      type: mimeType,
-      quality: mimeType === 'image/png' ? undefined : qualityVal
-    });
-
-    // 6. Generate Data URL for UI preview using FileReaderSync inside Web Worker
-    const reader = new FileReaderSync();
-    const resizedDataURL = reader.readAsDataURL(resizedBlob);
-
-    // 7. Cleanup ImageBitmap memory immediately
+    // Cleanup ImageBitmap memory immediately
     imgBitmap.close();
 
-    // 8. Post result back to main thread
+    // 4. Resolve Target Size in bytes
+    const targetSizeBytes = targetSizeKb * 1024;
+    const originalSizeBytes = file.size;
+
+    let mimeType = file.type || 'image/jpeg';
+    let bestBlob = null;
+    let bestQuality = 1.0;
+
+    // A flag to check if we can keep the original file untouched
+    const noResizingOccurred = (tw === ow && th === oh);
+
+    if (mimeType === 'image/png') {
+      // First, try exporting as standard PNG (lossless)
+      let pngBlob = await canvas.convertToBlob({ type: 'image/png' });
+      
+      if (pngBlob.size <= targetSizeBytes) {
+        bestBlob = pngBlob;
+        bestQuality = 1.0;
+      } else {
+        // PNG exceeds target size: fallback to WebP and compress!
+        mimeType = 'image/webp';
+        bestBlob = await runBinarySearchQuality(canvas, mimeType, targetSizeBytes);
+      }
+    } else if (mimeType === 'image/gif') {
+      // GIFs cannot easily be compressed in binary search canvas quality; keep standard
+      let gifBlob = await canvas.convertToBlob({ type: 'image/gif' });
+      bestBlob = gifBlob;
+    } else {
+      // JPEG / WebP / other lossy format
+      if (noResizingOccurred && originalSizeBytes <= targetSizeBytes) {
+        // Keep original untouched file if already under target size and no resizing is requested
+        bestBlob = file;
+        bestQuality = 1.0;
+      } else {
+        // Run quality binary search to match the target size
+        bestBlob = await runBinarySearchQuality(canvas, mimeType, targetSizeBytes);
+      }
+    }
+
+    // 5. Generate Data URL for UI preview using FileReaderSync inside Web Worker
+    const reader = new FileReaderSync();
+    const resizedDataURL = reader.readAsDataURL(bestBlob);
+
+    // 6. Post result back to main thread
     self.postMessage({
       success: true,
       resizedDataURL,
-      resizedBlob,
-      originalWidth: imgBitmap.width,
-      originalHeight: imgBitmap.height,
-      targetWidth,
-      targetHeight,
-      originalSize: file.size,
-      resizedSize: resizedBlob.size
+      resizedBlob: bestBlob,
+      originalWidth: ow,
+      originalHeight: oh,
+      targetWidth: tw,
+      targetHeight: th,
+      originalSize: originalSizeBytes,
+      resizedSize: bestBlob.size,
+      finalMimeType: mimeType
     });
+
   } catch (err) {
     self.postMessage({
       success: false,
@@ -128,3 +120,46 @@ self.onmessage = async function (e) {
     });
   }
 };
+
+/**
+ * Binary search quality selector to hit target size limit.
+ */
+async function runBinarySearchQuality(canvas, mimeType, targetSizeBytes) {
+  let bestBlob = null;
+
+  // 1. Try high quality = 0.95 first
+  let testBlob = await canvas.convertToBlob({ type: mimeType, quality: 0.95 });
+  if (testBlob.size <= targetSizeBytes) {
+    bestBlob = testBlob;
+    
+    // Check if 1.0 fits too
+    let maxBlob = await canvas.convertToBlob({ type: mimeType, quality: 1.0 });
+    if (maxBlob.size <= targetSizeBytes) {
+      bestBlob = maxBlob;
+    }
+  } else {
+    // 2. Binary search on quality in [0.05, 0.95]
+    let low = 0.05;
+    let high = 0.95;
+    let iterations = 6;
+
+    for (let i = 0; i < iterations; i++) {
+      const mid = (low + high) / 2;
+      const tempBlob = await canvas.convertToBlob({ type: mimeType, quality: mid });
+
+      if (tempBlob.size <= targetSizeBytes) {
+        bestBlob = tempBlob;
+        low = mid; // Try to maximize quality while staying under target
+      } else {
+        high = mid; // Needs to be smaller, decrease quality
+      }
+    }
+
+    // 3. Fallback: if even quality = 0.05 exceeds target size, use 0.05 as best effort
+    if (!bestBlob) {
+      bestBlob = await canvas.convertToBlob({ type: mimeType, quality: 0.05 });
+    }
+  }
+
+  return bestBlob;
+}

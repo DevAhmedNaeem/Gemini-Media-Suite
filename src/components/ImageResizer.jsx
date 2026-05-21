@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Scale, Download, UploadCloud, FolderClosed, Check, X, Loader2, AlertCircle, RefreshCw, Layers, Sliders, Settings2, HelpCircle } from 'lucide-react';
+import { Scale, Download, UploadCloud, FolderClosed, Check, X, Loader2, AlertCircle, RefreshCw, Sliders, Settings2 } from 'lucide-react';
 import JSZip from 'jszip';
 import confetti from 'canvas-confetti';
 
@@ -53,18 +53,10 @@ export default function ImageResizer() {
   const [isDragging, setIsDragging] = useState(false);
   const [showToast, setShowToast] = useState(null);
 
-  // Resize settings
-  const [resizeMode, setResizeMode] = useState('width'); // width, height, both, percent, max
-  const [targetWidth, setTargetWidth] = useState(800);
-  const [targetHeight, setTargetHeight] = useState(600);
-  const [maintainAspectRatio, setMaintainAspectRatio] = useState(true);
-  const [scalePercentage, setScalePercentage] = useState(50);
-  const [maxDimension, setMaxDimension] = useState(1080);
-
-  // Output settings
-  const [outputFormat, setOutputFormat] = useState('original'); // original, jpeg, png, webp
-  const [quality, setQuality] = useState(90); // 0 - 100
-  const [renameWithSuffix, setRenameWithSuffix] = useState(true);
+  // Resize settings (Simple Width / Height inputs)
+  const [targetWidth, setTargetWidth] = useState('');
+  const [targetHeight, setTargetHeight] = useState('');
+  const [targetSizeKb, setTargetSizeKb] = useState(200);
 
   // Statistics & Progress
   const [processedCount, setProcessedCount] = useState(0);
@@ -79,14 +71,9 @@ export default function ImageResizer() {
   const isProcessingRef = useRef(isProcessing);
 
   const settingsRef = useRef({
-    resizeMode,
     targetWidth,
     targetHeight,
-    maintainAspectRatio,
-    scalePercentage,
-    maxDimension,
-    outputFormat,
-    quality
+    targetSizeKb
   });
 
   // Keep references synced for workers
@@ -100,23 +87,20 @@ export default function ImageResizer() {
 
   useEffect(() => {
     settingsRef.current = {
-      resizeMode,
       targetWidth,
       targetHeight,
-      maintainAspectRatio,
-      scalePercentage,
-      maxDimension,
-      outputFormat,
-      quality
+      targetSizeKb
     };
-  }, [resizeMode, targetWidth, targetHeight, maintainAspectRatio, scalePercentage, maxDimension, outputFormat, quality]);
+  }, [targetWidth, targetHeight, targetSizeKb]);
 
   // Clean up Object URLs on unmount
   useEffect(() => {
     return () => {
       queueRef.current.forEach(item => {
         if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
-        if (item.resizedPreviewUrl) URL.revokeObjectURL(item.resizedPreviewUrl);
+        if (item.resizedPreviewUrl && !item.resizedPreviewUrl.startsWith('data:')) {
+          URL.revokeObjectURL(item.resizedPreviewUrl);
+        }
       });
     };
   }, []);
@@ -129,7 +113,7 @@ export default function ImageResizer() {
     }
   }, [showToast]);
 
-  // Read dimensions of added images to enable real-time size estimation
+  // Read dimensions of added images to enable real-time feedback
   const loadImageDimensions = (item) => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -168,13 +152,14 @@ export default function ImageResizer() {
         targetWidth: 0,
         targetHeight: 0,
         resizedSize: 0,
-        errorMessage: null
+        errorMessage: null,
+        finalMimeType: null
       }));
 
     if (newItems.length > 0) {
       setQueue(prev => [...prev, ...newItems]);
       
-      // Load dimensions asynchronously in background to enable size estimation
+      // Load dimensions asynchronously in background
       for (const item of newItems) {
         const dims = await loadImageDimensions(item);
         setQueue(prev => prev.map(q => {
@@ -197,7 +182,9 @@ export default function ImageResizer() {
 
     queue.forEach(item => {
       if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
-      if (item.resizedPreviewUrl) URL.revokeObjectURL(item.resizedPreviewUrl);
+      if (item.resizedPreviewUrl && !item.resizedPreviewUrl.startsWith('data:')) {
+        URL.revokeObjectURL(item.resizedPreviewUrl);
+      }
     });
 
     setQueue([]);
@@ -255,89 +242,6 @@ export default function ImageResizer() {
     }
   };
 
-  // Real-time Size Estimation Logic
-  const estimateResizedSize = useCallback(() => {
-    let totalEstimatedSize = 0;
-    let originalTotalSize = 0;
-
-    queue.forEach(item => {
-      originalTotalSize += item.file.size;
-      const ow = item.originalWidth || 1920;
-      const oh = item.originalHeight || 1080;
-      
-      // Calculate target dimension ratio
-      let tw = ow;
-      let th = oh;
-      const currentSettings = settingsRef.current;
-
-      switch (currentSettings.resizeMode) {
-        case 'width':
-          if (currentSettings.targetWidth) {
-            tw = currentSettings.targetWidth;
-            th = (oh / ow) * tw;
-          }
-          break;
-        case 'height':
-          if (currentSettings.targetHeight) {
-            th = currentSettings.targetHeight;
-            tw = (ow / oh) * th;
-          }
-          break;
-        case 'both':
-          if (currentSettings.targetWidth && currentSettings.targetHeight) {
-            if (currentSettings.maintainAspectRatio) {
-              const scale = Math.min(currentSettings.targetWidth / ow, currentSettings.targetHeight / oh);
-              tw = ow * scale;
-              th = oh * scale;
-            } else {
-              tw = currentSettings.targetWidth;
-              th = currentSettings.targetHeight;
-            }
-          }
-          break;
-        case 'percent':
-          tw = ow * (currentSettings.scalePercentage / 100);
-          th = oh * (currentSettings.scalePercentage / 100);
-          break;
-        case 'max':
-          if (currentSettings.maxDimension) {
-            if (ow > oh) {
-              tw = currentSettings.maxDimension;
-              th = (oh / ow) * tw;
-            } else {
-              th = currentSettings.maxDimension;
-              tw = (ow / oh) * th;
-            }
-          }
-          break;
-        default:
-          break;
-      }
-
-      const pixelRatio = (tw * th) / (ow * oh || 1);
-      
-      // Apply typical format efficiency factor
-      let formatFactor = 1.0;
-      const targetMime = currentSettings.outputFormat === 'original' ? item.file.type : `image/${currentSettings.outputFormat}`;
-
-      if (targetMime === 'image/png') {
-        formatFactor = 0.75;
-      } else if (targetMime === 'image/webp') {
-        formatFactor = 0.12 + (currentSettings.quality / 100) * 0.28;
-      } else {
-        // JPEG/other
-        formatFactor = 0.15 + (currentSettings.quality / 100) * 0.35;
-      }
-
-      totalEstimatedSize += item.file.size * pixelRatio * formatFactor;
-    });
-
-    return {
-      estimated: Math.round(totalEstimatedSize),
-      original: originalTotalSize
-    };
-  }, [queue, resizeMode, targetWidth, targetHeight, maintainAspectRatio, scalePercentage, maxDimension, outputFormat, quality]);
-
   // Web Worker Instance Creator
   const createResizerWorker = () => {
     return new Worker(
@@ -359,19 +263,17 @@ export default function ImageResizer() {
         worker.onmessage = (e) => {
           const res = e.data;
           if (res.success) {
-            // Create a local blob URL for preview
-            const localResizedUrl = URL.createObjectURL(res.resizedBlob);
-
             setQueue(prev => prev.map(q => q.id === item.id ? {
               ...q,
               status: 'success',
               resizedBlob: res.resizedBlob,
-              resizedPreviewUrl: localResizedUrl,
+              resizedPreviewUrl: res.resizedDataURL,
               originalWidth: res.originalWidth,
               originalHeight: res.originalHeight,
               targetWidth: res.targetWidth,
               targetHeight: res.targetHeight,
-              resizedSize: res.resizedBlob.size
+              resizedSize: res.resizedBlob.size,
+              finalMimeType: res.finalMimeType
             } : q));
 
             setTotalProcessedOriginalSize(prev => prev + res.originalSize);
@@ -381,6 +283,8 @@ export default function ImageResizer() {
           } else {
             throw new Error(res.error || 'Resizing error');
           }
+          worker.terminate();
+          activeWorkersRef.current.delete(item.id);
         };
 
         worker.onerror = (err) => {
@@ -390,14 +294,9 @@ export default function ImageResizer() {
         const currentSettings = settingsRef.current;
         worker.postMessage({
           file: item.file,
-          mode: currentSettings.resizeMode,
-          width: Number(currentSettings.targetWidth),
-          height: Number(currentSettings.targetHeight),
-          maintainAspectRatio: currentSettings.maintainAspectRatio,
-          percentage: Number(currentSettings.scalePercentage),
-          maxDimension: Number(currentSettings.maxDimension),
-          format: currentSettings.outputFormat,
-          quality: Number(currentSettings.quality)
+          width: currentSettings.targetWidth ? Number(currentSettings.targetWidth) : 0,
+          height: currentSettings.targetHeight ? Number(currentSettings.targetHeight) : 0,
+          targetSizeKb: Number(currentSettings.targetSizeKb)
         });
 
       } catch (err) {
@@ -408,13 +307,11 @@ export default function ImageResizer() {
           errorMessage: err.message || 'Resizing failed'
         } : q));
         setProcessedCount(prev => prev + 1);
-        resolve(false);
-      } finally {
         if (worker) {
+          worker.terminate();
           activeWorkersRef.current.delete(item.id);
-          // Don't terminate immediately, let message handle it or terminate on message resolve.
-          // In standard flows, we can terminate inside onmessage / catch blocks.
         }
+        resolve(false);
       }
     });
   }, []);
@@ -434,8 +331,9 @@ export default function ImageResizer() {
       ...item,
       status: 'waiting',
       resizedBlob: null,
-      resizedPreviewUrl: item.resizedPreviewUrl ? (URL.revokeObjectURL(item.resizedPreviewUrl), null) : null,
-      errorMessage: null
+      resizedPreviewUrl: item.resizedPreviewUrl && !item.resizedPreviewUrl.startsWith('data:') ? (URL.revokeObjectURL(item.resizedPreviewUrl), null) : null,
+      errorMessage: null,
+      finalMimeType: null
     })));
 
     const startTime = performance.now();
@@ -456,10 +354,10 @@ export default function ImageResizer() {
             particleCount: 120,
             spread: 80,
             origin: { y: 0.6 },
-            colors: ['#8B5CF6', '#3B82F6', '#10B981']
+            colors: ['#7C3AED', '#4F46E5', '#10B981']
           });
 
-          setShowToast(`Successfully resized ${batchQueue.length} images!`);
+          setShowToast(`Successfully processed ${batchQueue.length} images!`);
           resolve(true);
           return;
         }
@@ -480,7 +378,7 @@ export default function ImageResizer() {
     });
   };
 
-  // ZIP Generation preserving relative folder paths
+  // ZIP Generation preserving relative folder paths & adjusting extensions automatically
   const handleDownloadAll = async () => {
     if (queue.length === 0 || isZipping) return;
     setIsZipping(true);
@@ -494,16 +392,19 @@ export default function ImageResizer() {
         // If successfully resized, package the resized Blob
         if (item.status === 'success' && item.resizedBlob) {
           let finalPath = zipPath;
-          if (renameWithSuffix) {
-            const lastDotIndex = zipPath.lastIndexOf('.');
-            if (lastDotIndex !== -1) {
-              const base = zipPath.substring(0, lastDotIndex);
-              const ext = zipPath.substring(lastDotIndex);
-              finalPath = `${base}_resized${ext}`;
-            } else {
-              finalPath = `${zipPath}_resized`;
-            }
+          
+          const lastDotIndex = finalPath.lastIndexOf('.');
+          let basePath = lastDotIndex !== -1 ? finalPath.substring(0, lastDotIndex) : finalPath;
+          let ext = lastDotIndex !== -1 ? finalPath.substring(lastDotIndex) : '';
+
+          // Remap extension if converted to modern compressed mime types
+          if (item.finalMimeType === 'image/webp' && ext.toLowerCase() !== '.webp') {
+            ext = '.webp';
+          } else if (item.finalMimeType === 'image/jpeg' && ext.toLowerCase() !== '.jpg' && ext.toLowerCase() !== '.jpeg') {
+            ext = '.jpg';
           }
+
+          finalPath = `${basePath}${ext}`;
           zip.file(finalPath, item.resizedBlob);
         } else {
           // Fallback to original untouched file
@@ -546,15 +447,8 @@ export default function ImageResizer() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   };
 
-  // Estimates
-  const sizeEstimates = estimateResizedSize();
-  const savingsPercent = sizeEstimates.original > 0 
-    ? Math.round(((sizeEstimates.original - sizeEstimates.estimated) / sizeEstimates.original) * 100) 
-    : 0;
-
   // Statistics counters
   const successItems = queue.filter(item => item.status === 'success');
-  const errorItems = queue.filter(item => item.status === 'error');
   const progressPercent = queue.length > 0 ? Math.round((processedCount / queue.length) * 100) : 0;
 
   return (
@@ -587,19 +481,19 @@ export default function ImageResizer() {
             onClick={handleSelectFiles}
             className={`w-full max-w-2xl aspect-[16/10] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-6 cursor-pointer p-8 transition-all duration-300 bg-[#121218] ${
               isDragging
-                ? 'border-[#8B5CF6] bg-[#121218]/80 scale-[1.01] shadow-2xl shadow-[#8B5CF6]/5'
+                ? 'border-[#7C3AED] bg-[#121218]/80 scale-[1.01] shadow-2xl shadow-[#7C3AED]/5'
                 : 'border-[#2E2E38] hover:border-[#3B3B48] hover:bg-[#121218]/60'
             }`}
           >
             <div className="w-16 h-16 rounded-2xl bg-[#181822] border border-[#2E2E38] flex items-center justify-center shadow-md">
-              <UploadCloud className={`w-8 h-8 ${isDragging ? 'text-[#8B5CF6]' : 'text-[#8B8A96]'} transition-colors`} />
+              <UploadCloud className={`w-8 h-8 ${isDragging ? 'text-[#7C3AED]' : 'text-[#888896]'} transition-colors`} />
             </div>
 
             <div className="text-center">
               <p className="text-lg font-semibold text-white font-display">
                 Drop folder or images to resize
               </p>
-              <p className="text-sm text-[#8B8A96] mt-1.5 font-sans">
+              <p className="text-sm text-[#888896] mt-1.5 font-sans">
                 Supports JPG, PNG, WEBP, GIF — Offline, locally in your browser
               </p>
             </div>
@@ -615,7 +509,7 @@ export default function ImageResizer() {
                 onClick={handleSelectFolder}
                 className="bg-[#181822] hover:bg-[#20202B] text-white border border-[#2E2E38] text-xs font-semibold px-5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all"
               >
-                <FolderClosed size={14} className="text-[#8B8A96]" />
+                <FolderClosed size={14} className="text-[#888896]" />
                 Select Folder
               </button>
             </div>
@@ -625,13 +519,13 @@ export default function ImageResizer() {
         /* Workspace Active State */
         <div className="flex-1 flex overflow-hidden">
           {/* Left Column: Image Previews & Statistics */}
-          <div className="w-[62%] h-full flex flex-col p-6 overflow-y-auto bg-[#0D0D10]">
+          <div className="w-[65%] h-full flex flex-col p-6 overflow-y-auto bg-[#0D0D10]">
             <div className="flex items-center justify-between mb-5 shrink-0">
               <div className="flex items-center gap-2">
                 <h2 className="text-xs font-bold text-white tracking-wider uppercase font-display text-glow">
                   Batch Queue
                 </h2>
-                <span className="bg-[#181822] border border-[#2E2E38] px-2.5 py-0.5 rounded-full text-xs font-mono text-[#8B8A96]">
+                <span className="bg-[#181822] border border-[#2E2E38] px-2.5 py-0.5 rounded-full text-xs font-mono text-[#888896]">
                   {queue.length} files
                 </span>
               </div>
@@ -639,73 +533,17 @@ export default function ImageResizer() {
               <button
                 onClick={clearQueue}
                 disabled={isProcessing}
-                className="text-xs text-[#8B8A96] hover:text-white disabled:opacity-40 flex items-center gap-1 transition-colors"
+                className="text-xs text-[#888896] hover:text-white disabled:opacity-40 flex items-center gap-1 transition-colors"
               >
                 <RefreshCw size={12} className={isProcessing ? 'animate-spin' : ''} />
                 Clear All
               </button>
             </div>
 
-            {/* Progress Bar during execution */}
-            {isProcessing && (
-              <div className="bg-[#121218] border border-[#2E2E38] rounded-xl p-4 mb-6 space-y-2.5">
-                <div className="flex items-center justify-between text-xs font-mono text-[#8B8A96]">
-                  <span>Processing batch: {processedCount} / {queue.length}</span>
-                  <span className="text-white font-bold">{progressPercent}%</span>
-                </div>
-                <div className="h-2 w-full bg-[#0D0D10] border border-[#2E2E38] rounded-full overflow-hidden">
-                  <div
-                    style={{ width: `${progressPercent}%` }}
-                    className="h-full bg-gradient-to-r from-[#8B5CF6] to-[#3B82F6] rounded-full transition-all duration-300 relative overflow-hidden"
-                  >
-                    <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.25)_50%,transparent_100%)] animate-[shimmer_1.5s_infinite]" />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Statistics Dashboard Panel */}
-            {successItems.length > 0 && !isProcessing && (
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="bg-[#121218]/80 glass border border-[#2E2E38] rounded-xl p-4">
-                  <span className="text-[10px] uppercase font-bold text-[#8B8A96] tracking-wider block mb-1">
-                    Original Total Size
-                  </span>
-                  <span className="text-base font-bold text-white font-mono">
-                    {formatBytes(totalProcessedOriginalSize)}
-                  </span>
-                </div>
-                <div className="bg-[#121218]/80 glass border border-[#2E2E38] rounded-xl p-4">
-                  <span className="text-[10px] uppercase font-bold text-[#8B8A96] tracking-wider block mb-1">
-                    Resized Total Size
-                  </span>
-                  <span className="text-base font-bold text-[#10B981] font-mono">
-                    {formatBytes(totalProcessedResizedSize)}
-                  </span>
-                </div>
-                <div className="bg-[#121218]/80 glass border border-[#10B981]/30 rounded-xl p-4 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-[#8B8A96] tracking-wider block mb-1">
-                      Bandwidth Saved
-                    </span>
-                    <span className="text-base font-bold text-[#10B981] font-mono">
-                      {Math.max(0, Math.round(((totalProcessedOriginalSize - totalProcessedResizedSize) / (totalProcessedOriginalSize || 1)) * 100))}%
-                    </span>
-                  </div>
-                  {processingTime > 0 && (
-                    <div className="text-right">
-                      <span className="text-[9px] uppercase font-bold text-[#8B8A96] block mb-0.5">Time</span>
-                      <span className="text-xs font-mono text-white">{processingTime}s</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Thumbnail Preview Grid (Limited to first 12 max) */}
-            <div className="grid grid-cols-3 gap-4 pb-8">
-              {queue.slice(0, 12).map((item) => {
-                let badgeBg = 'bg-[#181822] text-[#8B8A96] border-[#2A2A35]';
+            {/* Thumbnail Preview Grid */}
+            <div className="grid grid-cols-4 gap-4 pb-8">
+              {queue.map((item) => {
+                let badgeBg = 'bg-[#181822] text-[#888896] border-[#2A2A35]';
                 let badgeText = 'Waiting';
 
                 if (item.status === 'processing') {
@@ -730,7 +568,7 @@ export default function ImageResizer() {
                     className="group bg-[#18181F] border border-[#2E2E38]/50 rounded-xl overflow-hidden shadow-md flex flex-col relative transition-all duration-300 hover:border-[#3B3B48]"
                   >
                     {/* Thumbnail Image */}
-                    <div className="aspect-[4/3] bg-[#0D0D10] w-full relative overflow-hidden shrink-0">
+                    <div className="aspect-square bg-[#0D0D10] w-full relative overflow-hidden shrink-0">
                       <img
                         src={preview}
                         alt={item.name}
@@ -749,7 +587,7 @@ export default function ImageResizer() {
                       {/* Resizing Processing Spinner */}
                       {item.status === 'processing' && (
                         <div className="absolute inset-0 bg-[#0D0D10]/70 flex items-center justify-center">
-                          <Loader2 className="w-6 h-6 text-[#8B5CF6] animate-spin" />
+                          <Loader2 className="w-6 h-6 text-[#7C3AED] animate-spin" />
                         </div>
                       )}
                     </div>
@@ -757,17 +595,25 @@ export default function ImageResizer() {
                     {/* Metadata Detail */}
                     <div className="p-3 flex flex-col justify-between flex-1 gap-2">
                       <div>
-                        <span title={item.name} className="text-xs font-semibold text-white truncate max-w-full block">
+                        <span title={item.name} className="text-xs font-semibold text-white truncate max-w-full block font-sans">
                           {item.name}
                         </span>
                         {item.originalWidth > 0 && (
-                          <div className="text-[10px] text-[#8B8A96] mt-0.5 font-mono">
+                          <div className="text-[10px] text-[#888896] mt-0.5 font-mono">
                             {item.status === 'success' ? (
-                              <span>
-                                {item.originalWidth}x{item.originalHeight} ➔ <span className="text-[#10B981] font-bold">{item.targetWidth}x{item.targetHeight}</span>
-                              </span>
+                              <div className="space-y-0.5">
+                                <div>
+                                  {item.originalWidth}x{item.originalHeight} ➔ <span className="text-[#10B981] font-bold">{item.targetWidth}x{item.targetHeight}</span>
+                                </div>
+                                <div className="text-[9px]">
+                                  {formatBytes(item.file.size)} ➔ <span className="text-[#10B981] font-bold">{formatBytes(item.resizedSize)}</span>
+                                </div>
+                              </div>
                             ) : (
-                              <span>Size: {item.originalWidth} x {item.originalHeight} px</span>
+                              <div className="space-y-0.5">
+                                <div>{item.originalWidth} x {item.originalHeight} px</div>
+                                <div className="text-[9px]">{formatBytes(item.file.size)}</div>
+                              </div>
                             )}
                           </div>
                         )}
@@ -795,265 +641,17 @@ export default function ImageResizer() {
                 );
               })}
             </div>
-            {queue.length > 12 && (
-              <div className="text-center pb-6 text-xs text-[#8B8A96] font-mono italic">
-                + {queue.length - 12} more images in the processing queue
-              </div>
-            )}
           </div>
 
-          {/* Right Column: Settings & Configuration Dashboard */}
-          <div className="w-[38%] h-full border-l border-[#1C1C24] bg-[#121218] flex flex-col p-6 overflow-y-auto">
+          {/* Right Column: Settings & Configuration Panel */}
+          <div className="w-[35%] h-full border-l border-[#1C1C24] bg-[#121218] flex flex-col p-6 overflow-y-auto">
             <div className="space-y-6 flex-1">
               
-              {/* Resize Mode Selector Panel */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-1.5">
-                  <Scale size={14} className="text-[#8B5CF6]" />
-                  <h3 className="text-xs font-bold text-white tracking-wider uppercase font-display">
-                    Resize Modes
-                  </h3>
-                </div>
-
-                <div className="grid grid-cols-1 gap-2 bg-[#18181F] p-3 border border-[#2E2E38] rounded-xl">
-                  {/* Mode Buttons */}
-                  {[
-                    { id: 'width', label: 'Fixed Width', desc: 'Sets width, height scales proportionally' },
-                    { id: 'height', label: 'Fixed Height', desc: 'Sets height, width scales proportionally' },
-                    { id: 'both', label: 'Fixed Width × Height', desc: 'Define absolute box dimensions' },
-                    { id: 'percent', label: 'Percentage Scale', desc: 'Compress image dimensions by % value' },
-                    { id: 'max', label: 'Max Dimension', desc: 'Scales the longer side of the image' }
-                  ].map((mode) => (
-                    <label
-                      key={mode.id}
-                      className={`flex items-start gap-2.5 p-2 rounded-lg cursor-pointer transition-colors ${
-                        resizeMode === mode.id
-                          ? 'bg-[#8B5CF6]/10 border border-[#8B5CF6]/30'
-                          : 'hover:bg-[#1E1E26] border border-transparent'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="resize_mode"
-                        checked={resizeMode === mode.id}
-                        onChange={() => setResizeMode(mode.id)}
-                        disabled={isProcessing}
-                        className="mt-1 accent-[#8B5CF6]"
-                      />
-                      <div>
-                        <p className="text-xs font-semibold text-white leading-none">{mode.label}</p>
-                        <p className="text-[10px] text-[#8B8A96] mt-0.5 leading-tight">{mode.desc}</p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Resize Parameters Configuration */}
-              <div className="space-y-4 bg-[#18181F] border border-[#2E2E38] rounded-xl p-4">
-                <div className="flex items-center gap-1.5 border-b border-[#2E2E38] pb-2 mb-2">
-                  <Sliders size={13} className="text-[#8B5CF6]" />
-                  <span className="text-xs font-bold text-white tracking-wide">
-                    Parameters Configuration
-                  </span>
-                </div>
-
-                {resizeMode === 'width' && (
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-semibold text-[#8B8A96] block">Width (Pixels)</label>
-                    <input
-                      type="number"
-                      value={targetWidth}
-                      onChange={(e) => setTargetWidth(Math.max(1, parseInt(e.target.value) || 0))}
-                      disabled={isProcessing}
-                      className="w-full bg-[#0D0D10] border border-[#2E2E38] rounded-lg p-2.5 text-xs text-white font-mono focus:border-[#8B5CF6] focus:outline-none"
-                    />
-                  </div>
-                )}
-
-                {resizeMode === 'height' && (
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-semibold text-[#8B8A96] block">Height (Pixels)</label>
-                    <input
-                      type="number"
-                      value={targetHeight}
-                      onChange={(e) => setTargetHeight(Math.max(1, parseInt(e.target.value) || 0))}
-                      disabled={isProcessing}
-                      className="w-full bg-[#0D0D10] border border-[#2E2E38] rounded-lg p-2.5 text-xs text-white font-mono focus:border-[#8B5CF6] focus:outline-none"
-                    />
-                  </div>
-                )}
-
-                {resizeMode === 'both' && (
-                  <div className="space-y-3.5">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-semibold text-[#8B8A96]">Width</label>
-                        <input
-                          type="number"
-                          value={targetWidth}
-                          onChange={(e) => setTargetWidth(Math.max(1, parseInt(e.target.value) || 0))}
-                          disabled={isProcessing}
-                          className="w-full bg-[#0D0D10] border border-[#2E2E38] rounded-lg p-2 text-xs text-white font-mono focus:border-[#8B5CF6] focus:outline-none"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-semibold text-[#8B8A96]">Height</label>
-                        <input
-                          type="number"
-                          value={targetHeight}
-                          onChange={(e) => setTargetHeight(Math.max(1, parseInt(e.target.value) || 0))}
-                          disabled={isProcessing}
-                          className="w-full bg-[#0D0D10] border border-[#2E2E38] rounded-lg p-2 text-xs text-white font-mono focus:border-[#8B5CF6] focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                    <label className="flex items-center gap-2 cursor-pointer pt-1 select-none">
-                      <input
-                        type="checkbox"
-                        checked={maintainAspectRatio}
-                        onChange={(e) => setMaintainAspectRatio(e.target.checked)}
-                        disabled={isProcessing}
-                        className="accent-[#8B5CF6] rounded"
-                      />
-                      <span className="text-[11px] font-semibold text-[#8B8A96] hover:text-white transition-colors">
-                        Maintain Aspect Ratio (Scale to fit)
-                      </span>
-                    </label>
-                  </div>
-                )}
-
-                {resizeMode === 'percent' && (
-                  <div className="space-y-3.5">
-                    <div className="flex justify-between items-center text-[11px] font-semibold text-[#8B8A96]">
-                      <span>Scale Percentage</span>
-                      <span className="text-[#8B5CF6] font-mono font-bold">{scalePercentage}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="1"
-                      max="300"
-                      value={scalePercentage}
-                      onChange={(e) => setScalePercentage(parseInt(e.target.value))}
-                      disabled={isProcessing}
-                      className="w-full h-1 bg-[#0D0D10] rounded-lg appearance-none cursor-pointer accent-[#8B5CF6]"
-                    />
-                    <div className="flex justify-between text-[9px] font-mono text-[#8B8A96] leading-none pt-0.5">
-                      <span>1% (Tiny)</span>
-                      <span>100% (Original)</span>
-                      <span>300% (Upscaled)</span>
-                    </div>
-                  </div>
-                )}
-
-                {resizeMode === 'max' && (
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-semibold text-[#8B8A96] block">Max Dimension (Pixels)</label>
-                    <input
-                      type="number"
-                      value={maxDimension}
-                      onChange={(e) => setMaxDimension(Math.max(1, parseInt(e.target.value) || 0))}
-                      disabled={isProcessing}
-                      className="w-full bg-[#0D0D10] border border-[#2E2E38] rounded-lg p-2.5 text-xs text-white font-mono focus:border-[#8B5CF6] focus:outline-none"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Output Format Settings Panel */}
-              <div className="space-y-4 bg-[#18181F] border border-[#2E2E38] rounded-xl p-4">
-                <div className="flex items-center gap-1.5 border-b border-[#2E2E38] pb-2 mb-2">
-                  <Settings2 size={13} className="text-[#8B5CF6]" />
-                  <span className="text-xs font-bold text-white tracking-wide">
-                    Output Configuration
-                  </span>
-                </div>
-
-                <div className="space-y-3.5">
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-[#8B8A96] block">Output Format</label>
-                    <select
-                      value={outputFormat}
-                      onChange={(e) => setOutputFormat(e.target.value)}
-                      disabled={isProcessing}
-                      className="w-full bg-[#0D0D10] border border-[#2E2E38] rounded-lg p-2.5 text-xs text-white focus:border-[#8B5CF6] focus:outline-none cursor-pointer"
-                    >
-                      <option value="original">Same as Original</option>
-                      <option value="jpeg">JPEG (Compressed)</option>
-                      <option value="png">PNG (Lossless)</option>
-                      <option value="webp">WebP (Modern Compact)</option>
-                    </select>
-                  </div>
-
-                  {/* Quality Settings (visible for lossy compressed formats) */}
-                  {(outputFormat === 'original' || outputFormat === 'jpeg' || outputFormat === 'webp') && (
-                    <div className="space-y-3 pt-1">
-                      <div className="flex justify-between items-center text-[11px] font-semibold text-[#8B8A96]">
-                        <span>Image Quality</span>
-                        <span className="text-[#8B5CF6] font-mono font-bold">{quality}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="10"
-                        max="100"
-                        value={quality}
-                        onChange={(e) => setQuality(parseInt(e.target.value))}
-                        disabled={isProcessing}
-                        className="w-full h-1 bg-[#0D0D10] rounded-lg appearance-none cursor-pointer accent-[#8B5CF6]"
-                      />
-                      <p className="text-[9px] text-[#8B8A96] leading-relaxed">
-                        Adjust quality level to shrink file size. Smaller quality yields tiny file sizes but introduces blocky compression artifacts.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Renaming Checkbox */}
-                  <label className="flex items-center gap-2 cursor-pointer pt-1 select-none">
-                    <input
-                      type="checkbox"
-                      checked={renameWithSuffix}
-                      onChange={(e) => setRenameWithSuffix(e.target.checked)}
-                      disabled={isProcessing}
-                      className="accent-[#8B5CF6] rounded"
-                    />
-                    <span className="text-[11px] font-semibold text-[#8B8A96] hover:text-white transition-colors">
-                      Rename files with `_resized` suffix
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Dynamic Size Estimation & Savings Feedback */}
-              {queue.length > 0 && !isProcessing && (
-                <div className="bg-[#18181F]/50 border border-[#2E2E38] rounded-xl p-4 font-mono text-[11px] space-y-2">
-                  <div className="flex items-center gap-1.5 border-b border-[#2E2E38]/50 pb-1.5 mb-1.5">
-                    <HelpCircle size={12} className="text-[#8B5CF6]" />
-                    <span className="font-bold text-white uppercase text-[10px] tracking-wider">
-                      Real-time Estimate
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-[#8B8A96]">
-                    <span>Original Size:</span>
-                    <span className="text-white">{formatBytes(sizeEstimates.original)}</span>
-                  </div>
-                  <div className="flex justify-between text-[#8B8A96]">
-                    <span>Estimated Size:</span>
-                    <span className="text-[#10B981] font-bold">~{formatBytes(sizeEstimates.estimated)}</span>
-                  </div>
-                  <div className="flex justify-between border-t border-[#2E2E38]/30 pt-1.5 font-bold">
-                    <span>Est. Savings:</span>
-                    <span className={savingsPercent > 0 ? 'text-[#10B981]' : 'text-white'}>
-                      {savingsPercent > 0 ? `-${savingsPercent}%` : '0%'}
-                    </span>
-                  </div>
-                </div>
-              )}
-
               {/* Core Run Action Button */}
               <button
                 onClick={startProcessing}
                 disabled={isProcessing || queue.length === 0}
-                className="w-full py-4 rounded-xl text-white font-bold tracking-wide uppercase transition-all duration-300 transform active:scale-95 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed bg-gradient-to-r from-[#8B5CF6] to-[#3B82F6] hover:opacity-95 shadow-xl shadow-[#8B5CF6]/15 text-sm flex items-center justify-center gap-2"
+                className="w-full py-4 rounded-xl text-white font-bold tracking-wide uppercase transition-all duration-300 transform active:scale-95 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] hover:opacity-95 shadow-xl shadow-[#7C3AED]/20 text-sm flex items-center justify-center gap-2"
               >
                 {isProcessing ? (
                   <>
@@ -1061,9 +659,133 @@ export default function ImageResizer() {
                     Resizing batch...
                   </>
                 ) : (
-                  'Process & Resize All'
+                  'Resize & Compress All'
                 )}
               </button>
+
+              {/* Progress bar during execution */}
+              {isProcessing && (
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between text-xs font-semibold text-[#888896]">
+                    <span>Processing: {processedCount} / {queue.length} images</span>
+                    <span className="text-white">{progressPercent}%</span>
+                  </div>
+                  <div className="h-2 w-full bg-[#18181F] border border-[#2E2E38] rounded-full overflow-hidden">
+                    <div
+                      style={{ width: `${progressPercent}%` }}
+                      className="h-full bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] rounded-full transition-all duration-300 relative overflow-hidden"
+                    >
+                      <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.25)_50%,transparent_100%)] animate-[shimmer_1.5s_infinite]" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Statistics Dashboard Panel */}
+              {successItems.length > 0 && !isProcessing && (
+                <div className="bg-[#18181F] border border-[#1E1E26] rounded-xl p-4 space-y-3 font-mono text-xs">
+                  <div className="flex justify-between items-center text-[#E8E8F0] border-b border-[#2E2E38]/30 pb-2 mb-1">
+                    <span className="font-semibold text-white uppercase text-[10px] tracking-wider font-sans">
+                      Compression Statistics
+                    </span>
+                    {processingTime > 0 && (
+                      <span className="text-[10px] text-[#888896]">{processingTime}s</span>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center text-[#888896]">
+                    <span>Original Size:</span>
+                    <span className="text-white font-bold">{formatBytes(totalProcessedOriginalSize)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[#888896]">
+                    <span>Compressed Size:</span>
+                    <span className="text-[#10B981] font-bold">{formatBytes(totalProcessedResizedSize)}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-[#2E2E38]/30 pt-2 text-[#E8E8F0]">
+                    <span className="font-bold">Bandwidth Saved:</span>
+                    <span className="font-bold text-[#10B981]">
+                      {Math.max(0, Math.round(((totalProcessedOriginalSize - totalProcessedResizedSize) / (totalProcessedOriginalSize || 1)) * 100))}%
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Card 1: Size Settings */}
+              <div className="bg-[#18181F] border border-[#1E1E26] rounded-xl p-4 space-y-3.5">
+                <div className="flex items-center gap-1.5 border-b border-[#2E2E38]/50 pb-2 mb-1">
+                  <Sliders size={13} className="text-[#7C3AED]" />
+                  <span className="text-xs font-bold text-white tracking-wide uppercase font-display">
+                    Size Settings
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-semibold text-[#888896]">Width (px)</label>
+                    <input
+                      type="number"
+                      placeholder="Auto"
+                      value={targetWidth}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setTargetWidth(val === '' ? '' : Math.max(1, parseInt(val) || 0));
+                      }}
+                      disabled={isProcessing}
+                      className="w-full bg-[#0D0D10] border border-[#2E2E38] rounded-lg p-2 text-xs text-white font-mono focus:border-[#7C3AED] focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-semibold text-[#888896]">Height (px)</label>
+                    <input
+                      type="number"
+                      placeholder="Auto"
+                      value={targetHeight}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setTargetHeight(val === '' ? '' : Math.max(1, parseInt(val) || 0));
+                      }}
+                      disabled={isProcessing}
+                      className="w-full bg-[#0D0D10] border border-[#2E2E38] rounded-lg p-2 text-xs text-white font-mono focus:border-[#7C3AED] focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-[#888896] leading-relaxed">
+                  Enter target dimensions. If one is entered, the other scales proportionally. If both are entered, it scales to fit within the box. Upscaling is automatically prevented.
+                </p>
+              </div>
+
+              {/* Card 2: Target File Size */}
+              <div className="bg-[#18181F] border border-[#1E1E26] rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-1.5 border-b border-[#2E2E38]/50 pb-2 mb-1">
+                  <Settings2 size={13} className="text-[#7C3AED]" />
+                  <span className="text-xs font-bold text-white tracking-wide uppercase font-display">
+                    Target File Size
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-semibold text-[#888896] block">Target Size (KB)</label>
+                    <span className="text-xs font-mono font-semibold text-[#7C3AED]">{targetSizeKb} KB</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="2000"
+                    step="10"
+                    value={targetSizeKb}
+                    onChange={(e) => setTargetSizeKb(parseInt(e.target.value))}
+                    disabled={isProcessing}
+                    className="w-full h-1 bg-[#2E2E38] rounded-lg appearance-none cursor-pointer accent-[#7C3AED] disabled:opacity-40"
+                  />
+                  <div className="flex justify-between text-[8px] font-mono text-[#888896] pt-0.5">
+                    <span>10 KB</span>
+                    <span>1000 KB</span>
+                    <span>2000 KB</span>
+                  </div>
+                </div>
+                <p className="text-[10px] text-[#888896] leading-relaxed">
+                  Sets the desired maximum output size. The engine uses a local binary search on image quality to compress under this limit. Lossless PNGs automatically fall back to WebP if PNG compression exceeds target.
+                </p>
+              </div>
+
             </div>
 
             {/* Downloader Footer Button */}
@@ -1099,9 +821,9 @@ export default function ImageResizer() {
           </div>
           <div>
             <p className="text-white font-semibold text-sm">Operation Complete</p>
-            <p className="text-[#8B8A96] text-xs mt-0.5">{showToast}</p>
+            <p className="text-[#888896] text-xs mt-0.5">{showToast}</p>
           </div>
-          <button onClick={() => setShowToast(null)} className="text-[#8B8A96] hover:text-white ml-2">
+          <button onClick={() => setShowToast(null)} className="text-[#888896] hover:text-white ml-2">
             <X size={15} />
           </button>
         </div>
@@ -1109,3 +831,4 @@ export default function ImageResizer() {
     </div>
   );
 }
+
