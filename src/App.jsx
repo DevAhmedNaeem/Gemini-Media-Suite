@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Sparkles, Download, UploadCloud, FolderClosed, Check, X, Loader2, AlertCircle, RefreshCw, Scale } from 'lucide-react';
+import { Sparkles, Download, UploadCloud, FolderClosed, Check, X, Loader2, AlertCircle, RefreshCw, Scale, ChevronLeft, ChevronRight } from 'lucide-react';
 import JSZip from 'jszip';
 import confetti from 'canvas-confetti';
 
 // Import our custom bulk processor hook
 import { useBulkProcessor } from './hooks/useBulkProcessor';
 import ImageResizer from './components/ImageResizer';
+import AltTextGenerator from './components/AltTextGenerator';
 
 // Helper: recursively traverse directory entries for drag and drop folder uploads
 const traverseFileTree = (item, path = '') => {
@@ -297,29 +298,56 @@ export default function App() {
           </div>
 
           {/* Navigation Tab Bar */}
-          <div className="flex bg-[#121218]/90 border border-[#2E2E38] rounded-xl p-1 shrink-0">
-            <button
-              onClick={() => setActiveTab('watermark')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
-                activeTab === 'watermark'
-                  ? 'bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] text-white shadow-md shadow-[#7C3AED]/15'
-                  : 'text-[#888896] hover:text-[#E8E8F0] hover:bg-[#1E1E26]'
-              }`}
-            >
-              <Sparkles size={13} />
-              Watermark Remover
-            </button>
-            <button
-              onClick={() => setActiveTab('resizer')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
-                activeTab === 'resizer'
-                  ? 'bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] text-white shadow-md shadow-[#7C3AED]/15'
-                  : 'text-[#888896] hover:text-[#E8E8F0] hover:bg-[#1E1E26]'
-              }`}
-            >
-              <Scale size={13} />
-              Image Resizer
-            </button>
+          <div className="flex bg-[#121218]/90 border border-[#2E2E38] rounded-xl p-1 shrink-0 transition-all duration-300">
+            {activeTab === 'alttext' ? (
+              <>
+                <button
+                  onClick={() => setActiveTab('watermark')}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#888896] hover:text-[#E8E8F0] hover:bg-[#1E1E26] transition-all duration-300"
+                >
+                  <ChevronLeft size={13} />
+                  Back
+                </button>
+                <button
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] text-white shadow-md shadow-[#7C3AED]/15 transition-all duration-300"
+                >
+                  <Sparkles size={13} />
+                  Alt Text Generator
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setActiveTab('watermark')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
+                    activeTab === 'watermark'
+                      ? 'bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] text-white shadow-md shadow-[#7C3AED]/15'
+                      : 'text-[#888896] hover:text-[#E8E8F0] hover:bg-[#1E1E26]'
+                  }`}
+                >
+                  <Sparkles size={13} />
+                  Watermark Remover
+                </button>
+                <button
+                  onClick={() => setActiveTab('resizer')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
+                    activeTab === 'resizer'
+                      ? 'bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] text-white shadow-md shadow-[#7C3AED]/15'
+                      : 'text-[#888896] hover:text-[#E8E8F0] hover:bg-[#1E1E26]'
+                  }`}
+                >
+                  <Scale size={13} />
+                  Image Resizer
+                </button>
+                <button
+                  onClick={() => setActiveTab('alttext')}
+                  title="Alt Text Generator"
+                  className="flex items-center justify-center w-8 h-8 rounded-lg text-xs font-semibold text-[#888896] hover:text-[#E8E8F0] hover:bg-[#1E1E26] transition-all duration-300 shrink-0"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -626,8 +654,10 @@ export default function App() {
               </div>
             </div>
           </div>
-        )) : (
+        )) : activeTab === 'resizer' ? (
           <ImageResizer />
+        ) : (
+          <AltTextGenerator />
         )}
       </main>
 
