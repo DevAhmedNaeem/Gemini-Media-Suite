@@ -15,43 +15,35 @@ self.onmessage = async function (e) {
     const ow = imgBitmap.width;
     const oh = imgBitmap.height;
 
-    // 2. Calculate the target dimensions (no upscaling allowed)
-    let tw = ow;
-    let th = oh;
+    // 2. Calculate the target dimensions
+    let targetWidth = ow;
+    let targetHeight = oh;
 
     if (width && height && width > 0 && height > 0) {
-      // Both dimensions specified: scale to fit while maintaining aspect ratio
-      const scale = Math.min(width / ow, height / oh);
-      tw = Math.round(ow * scale);
-      th = Math.round(oh * scale);
+      // Both dimensions specified: scale exactly to that dimension ignoring aspect ratio
+      targetWidth = width;
+      targetHeight = height;
     } else if (width && width > 0) {
       // Only width specified: height scales proportionally
-      tw = width;
-      th = Math.round((oh / ow) * width);
+      targetWidth = width;
+      targetHeight = Math.round((oh / ow) * width);
     } else if (height && height > 0) {
       // Only height specified: width scales proportionally
-      th = height;
-      tw = Math.round((ow / oh) * height);
-    }
-
-    // Never upscale a smaller image
-    if (tw > ow || th > oh) {
-      tw = ow;
-      th = oh;
+      targetHeight = height;
+      targetWidth = Math.round((ow / oh) * height);
     }
 
     // Ensure we don't scale down to 0
-    tw = Math.max(1, tw);
-    th = Math.max(1, th);
+    targetWidth = Math.max(1, targetWidth);
+    targetHeight = Math.max(1, targetHeight);
+
+    const tw = targetWidth;
+    const th = targetHeight;
 
     // 3. Create OffscreenCanvas and draw the image bitmap
-    const canvas = new OffscreenCanvas(tw, th);
+    const canvas = new OffscreenCanvas(targetWidth, targetHeight);
     const ctx = canvas.getContext('2d');
-
-    // High quality scaling settings
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(imgBitmap, 0, 0, tw, th);
+    ctx.drawImage(imgBitmap, 0, 0, targetWidth, targetHeight);
 
     // Cleanup ImageBitmap memory immediately
     imgBitmap.close();
