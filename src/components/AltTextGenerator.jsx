@@ -47,11 +47,8 @@ const traverseFileTree = (item, path = '') => {
 };
 
 // Query Google Gemini API
-export async function generateAltTextGemini(imageFile, apiKey) {
-  const finalApiKey = apiKey?.trim() || import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCRptaIBxoMXxd5xbRMc9Pc7LgHg7_vF-4';
-  if (!finalApiKey) {
-    throw new Error('No Gemini API key provided.');
-  }
+export async function generateAltTextGemini(imageFile) {
+  const API_KEY = "AIzaSyCq0HLGVlBlt0m0HbGB1Z-WQgeFeD5OrKs";
 
   // Convert image to base64
   const base64 = await new Promise((resolve, reject) => {
@@ -68,7 +65,7 @@ export async function generateAltTextGemini(imageFile, apiKey) {
   // Determine mime type
   const mimeType = imageFile.type || 'image/jpeg';
 
-  const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${finalApiKey.trim()}`;
+  const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${API_KEY}`;
 
   let response;
   let responseText;
@@ -158,14 +155,7 @@ export default function AltTextGenerator() {
   const [processedCount, setProcessedCount] = useState(0);
   const [showToast, setShowToast] = useState(null);
 
-  // Gemini API Key (loads from localStorage, then .env, or hardcoded fallback)
-  const [geminiKey, setGeminiKey] = useState(() => {
-    return localStorage.getItem('gemini_key') || import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCRptaIBxoMXxd5xbRMc9Pc7LgHg7_vF-4';
-  });
 
-  useEffect(() => {
-    localStorage.setItem('gemini_key', geminiKey);
-  }, [geminiKey]);
 
   // Cooldown state (Step 2)
   const [isCooldown, setIsCooldown] = useState(false);
@@ -282,7 +272,7 @@ export default function AltTextGenerator() {
     if (isProcessing) return;
     setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'processing', errorMessage: null } : q));
     try {
-      const generatedText = await generateAltTextGemini(item.file, geminiKey.trim());
+      const generatedText = await generateAltTextGemini(item.file);
       setQueue(prev => prev.map(q => q.id === item.id ? {
         ...q, status: 'success', altText: generatedText, errorMessage: null
       } : q));
@@ -296,11 +286,6 @@ export default function AltTextGenerator() {
   // Step 1: Main batching loop using the exact pattern specified
   const startProcessing = async () => {
     if (queue.length === 0 || isProcessing) return;
-
-    if (!geminiKey.trim()) {
-      setShowToast('Please enter your Gemini API key to proceed.');
-      return;
-    }
 
     setIsProcessing(true);
     setProcessedCount(0);
@@ -318,11 +303,10 @@ export default function AltTextGenerator() {
 
     // Snapshot the queue items for processing
     const imageFiles = [...queueRef.current];
-    const apiKey = geminiKey.trim();
 
     // Map the requested helper functions
-    const generateAltText = async (item, key) => {
-      return await generateAltTextGemini(item.file, key);
+    const generateAltText = async (item) => {
+      return await generateAltTextGemini(item.file);
     };
 
     const updateImageStatus = (fileNameOrId, status, altText = null, errorMessage = null) => {
@@ -388,7 +372,7 @@ export default function AltTextGenerator() {
         
         while (!success && attempt < 5) {
           try {
-            altText = await generateAltText(file, apiKey);
+            altText = await generateAltText(file);
             success = true;
           } catch (err) {
             const isRateLimit = err.message?.toLowerCase().includes('rate limit') || err.message?.includes('429');
