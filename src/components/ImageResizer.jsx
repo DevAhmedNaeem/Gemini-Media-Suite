@@ -748,7 +748,7 @@ export default function ImageResizer() {
                   </div>
                 </div>
                 <p className="text-[10px] text-[#888896] leading-relaxed">
-                  Enter target dimensions. If only one input is provided, the other scales proportionally. If both are defined, the engine resizes every image to exactly those dimensions, stretching if needed, ignoring aspect ratio completely, and fully allowing upscaling.
+                  Enter target dimensions. If only one input is provided, the other scales proportionally. If both are defined, the engine resizes every image to exactly those dimensions, cropping them to fit without stretching or aspect ratio distortion.
                 </p>
               </div>
 

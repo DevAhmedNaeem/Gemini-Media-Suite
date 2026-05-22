@@ -40,10 +40,34 @@ self.onmessage = async function (e) {
     const tw = targetWidth;
     const th = targetHeight;
 
-    // 3. Create OffscreenCanvas and draw the image bitmap
+    // 3. Create OffscreenCanvas and draw the image bitmap using center-cropping (no stretching)
     const canvas = new OffscreenCanvas(targetWidth, targetHeight);
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(imgBitmap, 0, 0, targetWidth, targetHeight);
+
+    if (width && height && width > 0 && height > 0) {
+      // Crop to cover targetWidth x targetHeight (similar to object-fit: cover)
+      const r_src = ow / oh;
+      const r_target = targetWidth / targetHeight;
+      let srcX = 0;
+      let srcY = 0;
+      let srcWidth = ow;
+      let srcHeight = oh;
+
+      if (r_src > r_target) {
+        // Original is wider: crop sides
+        srcWidth = oh * r_target;
+        srcX = (ow - srcWidth) / 2;
+      } else {
+        // Original is taller: crop top/bottom
+        srcHeight = ow / r_target;
+        srcY = (oh - srcHeight) / 2;
+      }
+
+      ctx.drawImage(imgBitmap, srcX, srcY, srcWidth, srcHeight, 0, 0, targetWidth, targetHeight);
+    } else {
+      // Single dimension scale: draw full image
+      ctx.drawImage(imgBitmap, 0, 0, targetWidth, targetHeight);
+    }
 
     // Cleanup ImageBitmap memory immediately
     imgBitmap.close();
