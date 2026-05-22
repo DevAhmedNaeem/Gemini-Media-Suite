@@ -345,20 +345,6 @@ export default function AltTextGenerator() {
     for (let i = 0; i < imageFiles.length; i++) {
       const file = imageFiles[i];
       
-      // Proactive cooldown after every 14 images to reset the 15 RPM sliding window
-      if (i > 0 && i % 14 === 0) {
-        console.log(`Proactive batch limit reached (14 images). Cooling down for 62 seconds to prevent rate limit...`);
-        setIsCooldown(true);
-        setCooldownBatchInfo({ current: i, total: imageFiles.length });
-        
-        for (let sec = 62; sec > 0; sec--) {
-          setCooldownSeconds(sec);
-          await sleep(1000);
-        }
-        
-        setIsCooldown(false);
-      }
-      
       // Update currently processing index for the UI state
       setCurrentProcessingIndex(i + 1);
       
@@ -368,65 +354,35 @@ export default function AltTextGenerator() {
       try {
         let altText = null;
         let success = false;
-        let attempt = 0;
         
-        while (!success && attempt < 5) {
-          try {
-            altText = await generateAltText(file);
-            success = true;
-          } catch (err) {
-            const isRateLimit = err.message?.toLowerCase().includes('rate limit') || err.message?.includes('429');
-            if (attempt < 4) {
-              attempt++;
-              if (isRateLimit) {
-                console.warn(`Rate limit (429) hit on ${file.name}. Cooling down for 62 seconds... (Attempt ${attempt}/5)`);
-                
-                // Enable rate limit 62-second cooldown state
-                setIsCooldown(true);
-                setCooldownBatchInfo({ current: i + 1, total: imageFiles.length });
-                
-                let secondsLeft = 62;
-                setCooldownSeconds(secondsLeft);
-                
-                // Countdown timer update every second
-                for (let sec = 62; sec > 0; sec--) {
-                  setCooldownSeconds(sec);
-                  await sleep(1000);
-                }
-                
-                setIsCooldown(false);
-              } else {
-                console.warn(`Network/Temporary error (${err.message}) on ${file.name}. Quick cooldown for 5 seconds... (Attempt ${attempt}/5)`);
-                
-                // Quick 5-second connection cooldown state
-                setIsCooldown(true);
-                setCooldownBatchInfo({ current: i + 1, total: imageFiles.length });
-                
-                let secondsLeft = 5;
-                setCooldownSeconds(secondsLeft);
-                
-                // Countdown timer update every second
-                for (let sec = 5; sec > 0; sec--) {
-                  setCooldownSeconds(sec);
-                  await sleep(1000);
-                }
-                
-                setIsCooldown(false);
-              }
-            } else {
-              throw err;
+        try {
+          altText = await generateAltText(file);
+          success = true;
+        } catch (err) {
+          const isRateLimit = err.message?.toLowerCase().includes('rate limit') || err.message?.includes('429');
+          if (isRateLimit) {
+            // Wait 15 seconds silently and retry once
+            await sleep(15000);
+            try {
+              altText = await generateAltText(file);
+              success = true;
+            } catch (retryErr) {
+              throw retryErr;
             }
+          } else {
+            throw err;
           }
         }
         
-        updateImageStatus(file.id, 'done', altText);
+        if (success) {
+          updateImageStatus(file.id, 'done', altText);
+        }
       } catch (err) {
         updateImageStatus(file.id, 'failed', null, err.message);
       }
 
-      // WAIT 4.5 seconds after EVERY request — keeps us at ~13 RPM, safely under 15 RPM limit
-      // Do NOT skip this wait even for the last image
-      await sleep(4500);
+      // Wait 4 seconds before moving to the next image
+      await sleep(4000);
     }
     // --- USER LOOP END ---
 
@@ -710,58 +666,26 @@ export default function AltTextGenerator() {
           <div className="w-[35%] h-full border-l border-[#1C1C24] bg-[#121218] flex flex-col p-6 overflow-y-auto">
             <div className="space-y-4 flex-1">
 
-              {/* Step 4: Generate Alt Text button — disabled during cooldown too */}
+              {/* Generate Alt Text button */}
               <button
                 onClick={startProcessing}
-                disabled={isProcessing || isCooldown || queue.length === 0}
+                disabled={isProcessing || queue.length === 0}
                 className="w-full py-4 rounded-xl text-white font-bold tracking-wide uppercase transition-all duration-300 transform active:scale-95 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] hover:opacity-95 shadow-xl shadow-[#7C3AED]/20 text-sm flex items-center justify-center gap-2"
               >
-                {isProcessing && !isCooldown ? (
+                {isProcessing ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
                     Processing image {currentProcessingIndex} of {queue.length}...
-                  </>
-                ) : isCooldown ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    Cooling down... {cooldownSeconds}s
                   </>
                 ) : (
                   'Generate Alt Text'
                 )}
               </button>
 
-              {/* Step 5: Info line below the button — always visible */}
+              {/* Info line below the button — always visible */}
               <p className="text-[10px] text-[#888896] text-center leading-relaxed">
-                Free Gemini API: 14 images per batch · Auto-waits 62s between batches
+                Paced Processing: 4s delay between image requests to prevent rate limits
               </p>
-
-              {/* Step 3: Cooldown UI block — shown only when isCooldown === true */}
-              {isCooldown && (
-                <div className="bg-[#1A1008] border border-[#D97706]/40 rounded-xl p-5 flex flex-col items-center gap-3">
-                  {/* Big countdown number */}
-                  <div className="text-5xl font-black text-[#F59E0B] tabular-nums leading-none">
-                    {cooldownSeconds}s
-                  </div>
-
-                  {/* Label */}
-                  <p className="text-xs font-bold text-white tracking-wide uppercase text-center">
-                    Gemini rate limit — cooling down
-                  </p>
-
-                  <p className="text-[11px] text-[#D97706] text-center leading-relaxed">
-                    Image {cooldownBatchInfo.current} of {cooldownBatchInfo.total} processed. Cooling down for 62 seconds to reset Gemini's rate limit. Resuming automatically...
-                  </p>
-
-                  {/* Animated progress bar draining down */}
-                  <div className="w-full h-2 bg-[#2A1F08] rounded-full overflow-hidden">
-                    <div
-                      style={{ width: `${(cooldownSeconds / 62) * 100}%` }}
-                      className="h-full bg-gradient-to-r from-[#D97706] to-[#F59E0B] rounded-full transition-all duration-1000"
-                    />
-                  </div>
-                </div>
-              )}
 
               {/* Progress bar during execution */}
               {(isProcessing || progressPercent > 0) && (
