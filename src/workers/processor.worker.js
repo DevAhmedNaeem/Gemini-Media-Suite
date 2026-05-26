@@ -394,105 +394,97 @@ function runDetectionPass(imageData, thresh, strict) {
 }
 
 /**
- * Horizon Gradient Inpainting — bilinear interpolation from real per-row/column
- * edge neighbors. Perfectly reconstructs gradients, skin tones, and flat fills.
- * Operates directly on raw ImageData (no canvas ctx needed).
+ * Nearest-Edge Texture Copy Inpainting
+ * For every pixel inside the watermark box, finds the closest edge of the box,
+ * then copies the REAL pixel from just outside that edge at the same distance
+ * (like folding the surrounding texture inward). This preserves actual skin
+ * texture, grain, and color — no blurring or averaging.
+ * A 2-pass seam blur then softens only the edge transition pixels.
  */
 function inpaintRegion(imageData, x, y, w, h) {
   const { data, width, height } = imageData;
 
-  // Clamp-read a pixel from the full canvas
-  function getPixel(px, py) {
-    if (px < 0) px = 0;
-    if (py < 0) py = 0;
-    if (px >= width)  px = width  - 1;
-    if (py >= height) py = height - 1;
+  // Read a pixel from the original snapshot (clamped to canvas bounds)
+  const snapshot = new Uint8ClampedArray(data);
+
+  function snapPixel(px, py) {
+    px = Math.max(0, Math.min(width  - 1, px));
+    py = Math.max(0, Math.min(height - 1, py));
     const i = (py * width + px) * 4;
-    return [data[i], data[i+1], data[i+2], data[i+3]];
+    return [snapshot[i], snapshot[i+1], snapshot[i+2]];
   }
 
-  // Write a pixel back into the full canvas
-  function setPixel(px, py, r, g, b, a) {
+  function setPixel(px, py, r, g, b) {
     const i = (py * width + px) * 4;
     data[i]   = r;
     data[i+1] = g;
     data[i+2] = b;
-    data[i+3] = a;
+    data[i+3] = 255;
   }
 
-  // Step 1: Fill every pixel with bilinear gradient interpolation.
-  // For each pixel we read the REAL neighbors just outside the box on all 4 sides
-  // at that exact row/column — giving accurate per-row and per-column colors.
+  // Step 1 — Texture copy: for each fill pixel find the nearest outside edge
+  // and copy the real texture pixel from there (mirrored inward).
   for (let py = y; py < y + h; py++) {
     for (let px = x; px < x + w; px++) {
-      // Normalised position inside the box (0 = left/top edge, 1 = right/bottom edge)
-      const tx = (px - x) / Math.max(w - 1, 1);
-      const ty = (py - y) / Math.max(h - 1, 1);
+      // Distance from this pixel to each of the 4 edges (in pixels)
+      const dL = px - x;               // 0 at left edge
+      const dR = (x + w - 1) - px;     // 0 at right edge
+      const dT = py - y;               // 0 at top edge
+      const dB = (y + h - 1) - py;     // 0 at bottom edge
 
-      // Real pixels just outside each edge at this exact row / column
-      const leftPx  = getPixel(x - 1,     py);
-      const rightPx = getPixel(x + w,     py);
-      const topPx   = getPixel(px,     y - 1);
-      const botPx   = getPixel(px,     y + h);
+      const minD = Math.min(dL, dR, dT, dB);
 
-      // Horizontal interpolation (left → right along this row)
-      const hR = leftPx[0] + (rightPx[0] - leftPx[0]) * tx;
-      const hG = leftPx[1] + (rightPx[1] - leftPx[1]) * tx;
-      const hB = leftPx[2] + (rightPx[2] - leftPx[2]) * tx;
+      let sp;
+      if (minD === dB) {
+        // Closest to bottom — sample from BELOW the box (preserves texture beneath)
+        sp = snapPixel(px, y + h + dB);
+      } else if (minD === dT) {
+        // Closest to top — sample from ABOVE
+        sp = snapPixel(px, y - 1 - dT);
+      } else if (minD === dL) {
+        // Closest to left — sample from LEFT
+        sp = snapPixel(x - 1 - dL, py);
+      } else {
+        // Closest to right — sample from RIGHT
+        sp = snapPixel(x + w + dR, py);
+      }
 
-      // Vertical interpolation (top → bottom along this column)
-      const vR = topPx[0] + (botPx[0] - topPx[0]) * ty;
-      const vG = topPx[1] + (botPx[1] - topPx[1]) * ty;
-      const vB = topPx[2] + (botPx[2] - topPx[2]) * ty;
-
-      // Blend horizontal and vertical 50/50
-      setPixel(px, py,
-        Math.round((hR + vR) / 2),
-        Math.round((hG + vG) / 2),
-        Math.round((hB + vB) / 2),
-        255
-      );
+      setPixel(px, py, sp[0], sp[1], sp[2]);
     }
   }
 
-  // Step 2: 3-pass box blur on the edge ring only (approximates Gaussian).
-  // Interior pixels keep their smooth gradient; only the seam is softened.
-  const blurPad = 2;
-  const bx  = Math.max(0, x - blurPad);
-  const by2 = Math.max(0, y - blurPad);
-  const bw  = Math.min(width  - bx,  w + blurPad * 2);
-  const bh  = Math.min(height - by2, h + blurPad * 2);
+  // Step 2 — 2-pass seam blur: soften only the 3px border ring where the
+  // copied texture meets the original image. Interior stays untouched.
+  for (let pass = 0; pass < 2; pass++) {
+    const snap2 = new Uint8ClampedArray(data);
 
-  for (let pass = 0; pass < 3; pass++) {
-    // Snapshot current state so blur reads from the previous pass
-    const snap = new Uint8ClampedArray(data);
-
-    function snapPixel(px, py) {
-      if (px < 0) px = 0;
-      if (py < 0) py = 0;
-      if (px >= width)  px = width  - 1;
-      if (py >= height) py = height - 1;
+    function snap2Pixel(px, py) {
+      px = Math.max(0, Math.min(width  - 1, px));
+      py = Math.max(0, Math.min(height - 1, py));
       const i = (py * width + px) * 4;
-      return [snap[i], snap[i+1], snap[i+2]];
+      return [snap2[i], snap2[i+1], snap2[i+2]];
     }
 
-    for (let py = by2 + 1; py < by2 + bh - 1; py++) {
-      for (let px = bx + 1; px < bx + bw - 1; px++) {
-        // Only touch the edge ring — leave the gradient interior intact
-        const nearEdge = (
+    const r0 = Math.max(0, y - 2),       c0 = Math.max(0, x - 2);
+    const r1 = Math.min(height, y+h+2),  c1 = Math.min(width, x+w+2);
+
+    for (let py = r0; py < r1; py++) {
+      for (let px = c0; px < c1; px++) {
+        // Only blur the edge seam ring — leave interior pixels intact
+        const onSeam = (
           px <= x + 2 || px >= x + w - 3 ||
           py <= y + 2 || py >= y + h - 3
         );
-        if (!nearEdge) continue;
+        if (!onSeam) continue;
 
         let r = 0, g = 0, b = 0;
         for (let dy = -1; dy <= 1; dy++) {
           for (let dx = -1; dx <= 1; dx++) {
-            const p = snapPixel(px + dx, py + dy);
+            const p = snap2Pixel(px + dx, py + dy);
             r += p[0]; g += p[1]; b += p[2];
           }
         }
-        setPixel(px, py, Math.round(r / 9), Math.round(g / 9), Math.round(b / 9), 255);
+        setPixel(px, py, Math.round(r / 9), Math.round(g / 9), Math.round(b / 9));
       }
     }
   }
