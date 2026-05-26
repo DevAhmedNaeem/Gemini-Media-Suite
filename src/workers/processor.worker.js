@@ -394,97 +394,113 @@ function runDetectionPass(imageData, thresh, strict) {
 }
 
 /**
- * Nearest-Edge Texture Copy Inpainting
- * For every pixel inside the watermark box, finds the closest edge of the box,
- * then copies the REAL pixel from just outside that edge at the same distance
- * (like folding the surrounding texture inward). This preserves actual skin
- * texture, grain, and color — no blurring or averaging.
- * A 2-pass seam blur then softens only the edge transition pixels.
+ * 4-Way Inverse Distance Weighted (IDW) Inpainting
+ *
+ * For every pixel inside the watermark box, all four surrounding edge walls
+ * are sampled at the EXACT same row / column as the target pixel, then
+ * blended using inverse-distance-squared weights.  Pixels near the left wall
+ * pull toward the left-edge colour; pixels near the bottom pull toward the
+ * bottom colour — with a smooth, continuous transition everywhere.  No
+ * geometric seams, no colour patches, works on any background type.
  */
 function inpaintRegion(imageData, x, y, w, h) {
   const { data, width, height } = imageData;
 
-  // Read a pixel from the original snapshot (clamped to canvas bounds)
-  const snapshot = new Uint8ClampedArray(data);
+  // Snapshot original so edge reads are never contaminated by filled pixels.
+  const original = new Uint8ClampedArray(data);
 
-  function snapPixel(px, py) {
-    px = Math.max(0, Math.min(width  - 1, px));
-    py = Math.max(0, Math.min(height - 1, py));
-    const i = (py * width + px) * 4;
-    return [snapshot[i], snapshot[i+1], snapshot[i+2]];
+  function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+  // Average `depth` pixels outward from each edge for noise stability.
+  const depth = 3;
+
+  function edgeLeft(row) {
+    let r = 0, g = 0, b = 0;
+    for (let k = 1; k <= depth; k++) {
+      const i = (clamp(row, 0, height-1) * width + clamp(x-k, 0, width-1)) * 4;
+      r += original[i]; g += original[i+1]; b += original[i+2];
+    }
+    return [r/depth, g/depth, b/depth];
   }
 
-  function setPixel(px, py, r, g, b) {
-    const i = (py * width + px) * 4;
-    data[i]   = r;
-    data[i+1] = g;
-    data[i+2] = b;
-    data[i+3] = 255;
+  function edgeRight(row) {
+    let r = 0, g = 0, b = 0;
+    for (let k = 0; k < depth; k++) {
+      const i = (clamp(row, 0, height-1) * width + clamp(x+w+k, 0, width-1)) * 4;
+      r += original[i]; g += original[i+1]; b += original[i+2];
+    }
+    return [r/depth, g/depth, b/depth];
   }
 
-  // Step 1 — Texture copy: for each fill pixel find the nearest outside edge
-  // and copy the real texture pixel from there (mirrored inward).
+  function edgeTop(col) {
+    let r = 0, g = 0, b = 0;
+    for (let k = 1; k <= depth; k++) {
+      const i = (clamp(y-k, 0, height-1) * width + clamp(col, 0, width-1)) * 4;
+      r += original[i]; g += original[i+1]; b += original[i+2];
+    }
+    return [r/depth, g/depth, b/depth];
+  }
+
+  function edgeBottom(col) {
+    let r = 0, g = 0, b = 0;
+    for (let k = 0; k < depth; k++) {
+      const i = (clamp(y+h+k, 0, height-1) * width + clamp(col, 0, width-1)) * 4;
+      r += original[i]; g += original[i+1]; b += original[i+2];
+    }
+    return [r/depth, g/depth, b/depth];
+  }
+
+  // Step 1 — IDW fill
   for (let py = y; py < y + h; py++) {
     for (let px = x; px < x + w; px++) {
-      // Distance from this pixel to each of the 4 edges (in pixels)
-      const dL = px - x;               // 0 at left edge
-      const dR = (x + w - 1) - px;     // 0 at right edge
-      const dT = py - y;               // 0 at top edge
-      const dB = (y + h - 1) - py;     // 0 at bottom edge
+      const dL = px - x + 1;       // distance to left wall  (min = 1)
+      const dR = x + w - px;       // distance to right wall (min = 1)
+      const dT = py - y + 1;       // distance to top wall   (min = 1)
+      const dB = y + h - py;       // distance to bottom wall(min = 1)
 
-      const minD = Math.min(dL, dR, dT, dB);
+      const cL = edgeLeft(py);
+      const cR = edgeRight(py);
+      const cT = edgeTop(px);
+      const cB = edgeBottom(px);
 
-      let sp;
-      if (minD === dB) {
-        // Closest to bottom — sample from BELOW the box (preserves texture beneath)
-        sp = snapPixel(px, y + h + dB);
-      } else if (minD === dT) {
-        // Closest to top — sample from ABOVE
-        sp = snapPixel(px, y - 1 - dT);
-      } else if (minD === dL) {
-        // Closest to left — sample from LEFT
-        sp = snapPixel(x - 1 - dL, py);
-      } else {
-        // Closest to right — sample from RIGHT
-        sp = snapPixel(x + w + dR, py);
-      }
+      const wL = 1.0 / (dL * dL);
+      const wR = 1.0 / (dR * dR);
+      const wT = 1.0 / (dT * dT);
+      const wB = 1.0 / (dB * dB);
+      const wS = wL + wR + wT + wB;
 
-      setPixel(px, py, sp[0], sp[1], sp[2]);
+      const i = (py * width + px) * 4;
+      data[i]     = Math.round(clamp((cL[0]*wL + cR[0]*wR + cT[0]*wT + cB[0]*wB) / wS, 0, 255));
+      data[i + 1] = Math.round(clamp((cL[1]*wL + cR[1]*wR + cT[1]*wT + cB[1]*wB) / wS, 0, 255));
+      data[i + 2] = Math.round(clamp((cL[2]*wL + cR[2]*wR + cT[2]*wT + cB[2]*wB) / wS, 0, 255));
+      data[i + 3] = 255;
     }
   }
 
-  // Step 2 — 2-pass seam blur: soften only the 3px border ring where the
-  // copied texture meets the original image. Interior stays untouched.
+  // Step 2 — 2-pass seam blur on the 3px transition ring only.
   for (let pass = 0; pass < 2; pass++) {
-    const snap2 = new Uint8ClampedArray(data);
+    const snap = new Uint8ClampedArray(data);
 
-    function snap2Pixel(px, py) {
-      px = Math.max(0, Math.min(width  - 1, px));
-      py = Math.max(0, Math.min(height - 1, py));
-      const i = (py * width + px) * 4;
-      return [snap2[i], snap2[i+1], snap2[i+2]];
-    }
+    const x0 = Math.max(0, x - 3),     y0 = Math.max(0, y - 3);
+    const x1 = Math.min(width, x+w+3), y1 = Math.min(height, y+h+3);
 
-    const r0 = Math.max(0, y - 2),       c0 = Math.max(0, x - 2);
-    const r1 = Math.min(height, y+h+2),  c1 = Math.min(width, x+w+2);
-
-    for (let py = r0; py < r1; py++) {
-      for (let px = c0; px < c1; px++) {
-        // Only blur the edge seam ring — leave interior pixels intact
-        const onSeam = (
-          px <= x + 2 || px >= x + w - 3 ||
-          py <= y + 2 || py >= y + h - 3
-        );
+    for (let py = y0; py < y1; py++) {
+      for (let px = x0; px < x1; px++) {
+        const onSeam = px < x+3 || px >= x+w-3 || py < y+3 || py >= y+h-3;
         if (!onSeam) continue;
 
         let r = 0, g = 0, b = 0;
         for (let dy = -1; dy <= 1; dy++) {
           for (let dx = -1; dx <= 1; dx++) {
-            const p = snap2Pixel(px + dx, py + dy);
-            r += p[0]; g += p[1]; b += p[2];
+            const ni = (clamp(py+dy, 0, height-1) * width + clamp(px+dx, 0, width-1)) * 4;
+            r += snap[ni]; g += snap[ni+1]; b += snap[ni+2];
           }
         }
-        setPixel(px, py, Math.round(r / 9), Math.round(g / 9), Math.round(b / 9));
+        const i = (py * width + px) * 4;
+        data[i]     = Math.round(r / 9);
+        data[i + 1] = Math.round(g / 9);
+        data[i + 2] = Math.round(b / 9);
+        data[i + 3] = 255;
       }
     }
   }
