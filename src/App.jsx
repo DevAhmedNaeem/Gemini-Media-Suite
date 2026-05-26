@@ -7,6 +7,7 @@ import confetti from 'canvas-confetti';
 import { useBulkProcessor } from './hooks/useBulkProcessor';
 import ImageResizer from './components/ImageResizer';
 
+
 // Helper: recursively traverse directory entries for drag and drop folder uploads
 const traverseFileTree = (item, path = '') => {
   return new Promise((resolve) => {
@@ -265,7 +266,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0D0D10] text-[#E8E8F0] antialiased selection:bg-[#7C3AED]/30 selection:text-white font-sans">
+    <div className="min-h-screen flex flex-col bg-[#0D0D10] premium-bg text-[#E8E8F0] antialiased selection:bg-[#7C3AED]/30 selection:text-white font-sans">
       {/* Hidden File Inputs */}
       <input
         type="file"
@@ -285,13 +286,19 @@ export default function App() {
       />
 
       {/* ZONE A — TOP HEADER */}
-      <header className="h-[60px] border-b border-[#1C1C24] bg-[#0D0D10]/80 backdrop-blur-md px-6 flex items-center justify-between shrink-0 sticky top-0 z-40 relative">
+      <header className="premium-navbar px-6 flex items-center justify-between shrink-0 sticky top-0 z-40 relative">
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2.5">
+          <div 
+            onClick={() => {
+              clearQueue();
+              setActiveTab('watermark');
+            }}
+            className="flex items-center gap-2.5 cursor-pointer hover:opacity-90 active:scale-95 transition-all select-none"
+          >
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#7C3AED] to-[#4F46E5] flex items-center justify-center shadow-lg shadow-[#7C3AED]/20">
               <Sparkles className="w-4 h-4 text-white animate-pulse" />
             </div>
-            <span className="font-semibold text-base tracking-tight text-white font-display text-glow hidden sm:block">
+            <span className="font-semibold text-base tracking-tight text-white font-display text-glow premium-logo-text hidden sm:block">
               Gemini Tools
             </span>
           </div>
@@ -302,8 +309,8 @@ export default function App() {
               onClick={() => setActiveTab('watermark')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
                 activeTab === 'watermark'
-                  ? 'bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] text-white shadow-md shadow-[#7C3AED]/15'
-                  : 'text-[#888896] hover:text-[#E8E8F0] hover:bg-[#1E1E26]'
+                  ? 'premium-tab-active'
+                  : 'premium-tab-inactive'
               }`}
             >
               <Sparkles size={13} />
@@ -313,19 +320,20 @@ export default function App() {
               onClick={() => setActiveTab('resizer')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
                 activeTab === 'resizer'
-                  ? 'bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] text-white shadow-md shadow-[#7C3AED]/15'
-                  : 'text-[#888896] hover:text-[#E8E8F0] hover:bg-[#1E1E26]'
+                  ? 'premium-tab-active'
+                  : 'premium-tab-inactive'
               }`}
             >
               <Scale size={13} />
               Image Resizer
             </button>
+
           </div>
         </div>
 
         {/* Absolutely Centered Credit Badge */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none hidden md:block">
-          <span className="text-xs font-semibold tracking-wide text-[#888896] bg-[#18181F] border border-[#2E2E38] px-4 py-1.5 rounded-full font-mono pointer-events-auto shadow-sm">
+          <span className="text-xs font-semibold tracking-wide font-mono pointer-events-auto premium-badge">
             Built By Ahmed Naeem
           </span>
         </div>
@@ -363,35 +371,33 @@ export default function App() {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={handleSelectFiles}
-              className={`w-full max-w-2xl aspect-[16/10] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-6 cursor-pointer p-8 transition-all duration-300 bg-[#121218] ${
-                isDragging
-                  ? 'border-[#7C3AED] bg-[#121218]/80 scale-[1.01] shadow-2xl shadow-[#7C3AED]/5'
-                  : 'border-[#2E2E38] hover:border-[#3B3B48] hover:bg-[#121218]/60'
+              className={`w-full max-w-2xl aspect-[16/10] flex flex-col items-center justify-center gap-6 cursor-pointer p-8 premium-transition premium-dropzone ${
+                isDragging ? 'premium-dropzone-dragging' : ''
               }`}
             >
               <div className="w-16 h-16 rounded-2xl bg-[#181822] border border-[#2E2E38] flex items-center justify-center shadow-md">
-                <UploadCloud className={`w-8 h-8 ${isDragging ? 'text-[#7C3AED]' : 'text-[#888896]'} transition-colors`} />
+                <UploadCloud className={`w-8 h-8 premium-dropzone-icon transition-colors`} />
               </div>
 
               <div className="text-center">
-                <p className="text-lg font-semibold text-white">
+                <p className="text-lg font-semibold premium-dropzone-text">
                   Drop a folder or images here
                 </p>
-                <p className="text-sm text-[#888896] mt-1.5">
+                <p className="text-sm text-[#888896] mt-1.5 font-sans">
                   Supports JPG, PNG, WEBP — any quantity
                 </p>
               </div>
 
               <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                 <button
-                  onClick={handleSelectFiles}
-                  className="bg-[#181822] hover:bg-[#20202B] text-white border border-[#2E2E38] text-xs font-semibold px-5 py-2.5 rounded-xl transition-all"
+                   onClick={handleSelectFiles}
+                   className="premium-secondary-button text-xs font-semibold px-5 py-2.5 rounded-xl transition-all"
                 >
                   Choose Images
                 </button>
                 <button
                   onClick={handleSelectFolder}
-                  className="bg-[#181822] hover:bg-[#20202B] text-white border border-[#2E2E38] text-xs font-semibold px-5 py-2.5 rounded-xl transition-all flex items-center gap-1.5"
+                  className="premium-secondary-button text-xs font-semibold px-5 py-2.5 rounded-xl transition-all flex items-center gap-1.5"
                 >
                   <FolderClosed size={14} className="text-[#888896]" />
                   Select Folder
@@ -517,7 +523,7 @@ export default function App() {
                 <button
                   onClick={startProcessing}
                   disabled={isProcessing}
-                  className="w-full py-4 rounded-xl text-white font-bold tracking-wide uppercase transition-all duration-300 transform active:scale-95 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] hover:opacity-95 shadow-xl shadow-[#7C3AED]/20 text-sm flex items-center justify-center gap-2"
+                  className="w-full py-4 rounded-xl text-white text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed premium-button"
                 >
                   {isProcessing ? (
                     <>
@@ -541,17 +547,13 @@ export default function App() {
                   <div className="h-2 w-full bg-[#18181F] border border-[#2E2E38] rounded-full overflow-hidden">
                     <div
                       style={{ width: `${progressPercent}%` }}
-                      className="h-full bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] rounded-full transition-all duration-300 relative overflow-hidden"
-                    >
-                      {isProcessing && (
-                        <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.25)_50%,transparent_100%)] animate-[shimmer_1.5s_infinite]" />
-                      )}
-                    </div>
+                      className="h-full premium-progress-bar transition-all duration-300 relative overflow-hidden"
+                    />
                   </div>
                 </div>
 
                 {/* Status Counters */}
-                <div className="bg-[#18181F] border border-[#1E1E26] rounded-xl p-4 space-y-3 font-mono text-xs">
+                <div className="premium-card p-4 space-y-3 font-mono text-xs">
                   <div className="flex justify-between items-center text-[#E8E8F0]">
                     <span className="flex items-center gap-1.5">
                       <Check size={14} className="text-[#10B981]" />
@@ -578,12 +580,12 @@ export default function App() {
                 </div>
 
                 {/* Inpaint Strength Slider */}
-                <div className="space-y-3 bg-[#18181F] border border-[#1E1E26] rounded-xl p-4">
-                  <div className="flex justify-between items-center">
+                <div className="space-y-3 premium-card p-4">
+                  <div className="flex justify-between items-center border-b border-[#2E2E38]/30 pb-2 mb-1">
                     <span className="text-xs font-semibold text-white tracking-wide">
                       Inpaint Strength
                     </span>
-                    <span className="text-xs font-mono font-bold text-[#7C3AED]">
+                    <span className="text-xs font-mono font-bold premium-slider-label-glow">
                       {inpaintStrength}
                     </span>
                   </div>
@@ -595,7 +597,7 @@ export default function App() {
                     value={inpaintStrength}
                     onChange={(e) => setInpaintStrength(parseInt(e.target.value))}
                     disabled={isProcessing}
-                    className="w-full h-1 bg-[#2E2E38] rounded-lg appearance-none cursor-pointer accent-[#7C3AED] disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="premium-slider disabled:opacity-40 disabled:cursor-not-allowed"
                   />
 
                   <p className="text-[10px] text-[#888896] leading-relaxed">
@@ -609,7 +611,7 @@ export default function App() {
                 <button
                   onClick={handleDownloadAll}
                   disabled={isProcessing || stats.removed === 0 || isZipping}
-                  className="w-full py-3.5 rounded-xl font-semibold border border-[#2E2E38] hover:border-[#3B3B48] text-[#E8E8F0] hover:bg-[#18181F] disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:border-[#2E2E38] disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 text-xs"
+                  className="w-full py-3.5 rounded-xl font-semibold premium-secondary-button disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 text-xs"
                 >
                   {isZipping ? (
                     <>
@@ -626,9 +628,9 @@ export default function App() {
               </div>
             </div>
           </div>
-        )) : (
-          <ImageResizer />
-        )}
+          )) : activeTab === 'resizer' ? (
+            <ImageResizer />
+          ) : null}
       </main>
 
       {/* FLOATING TOAST NOTIFICATION */}

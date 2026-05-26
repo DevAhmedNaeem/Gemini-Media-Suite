@@ -12,23 +12,24 @@ self.onmessage = async function (e) {
     const detectResult = detectWatermark(imgData);
 
     if (detectResult.found && detectResult.rects && detectResult.rects.length > 0) {
-      // 2. Run inpainting on ALL detected watermark candidates
-      for (const rect of detectResult.rects) {
-        inpaintWatermark(
-          imgData,
-          rect.x,
-          rect.y,
-          rect.width,
-          rect.height,
-          inpaintStrength
-        );
-      }
-
-      // 3. Convert ImageData to PNG Blob & Data URL using OffscreenCanvas + FileReaderSync
+      // 2. Setup the OffscreenCanvas with the original image data first
       const canvas = new OffscreenCanvas(width, height);
       const ctx = canvas.getContext('2d');
       const finalImgData = new ImageData(rawData, width, height);
       ctx.putImageData(finalImgData, 0, 0);
+
+      // 3. Run inpainting using canvas 2D context on ALL detected watermark candidates
+      for (const rect of detectResult.rects) {
+        inpaintRegion(
+          ctx,
+          rect.x,
+          rect.y,
+          rect.width,
+          rect.height,
+          width,
+          height
+        );
+      }
 
       const blob = await canvas.convertToBlob({ type: 'image/png' });
       const reader = new FileReaderSync();
@@ -400,122 +401,169 @@ function runDetectionPass(imageData, thresh, strict) {
   };
 }
 
-/**
- * High-quality distance-weighted color blend with boundary box blur inpainting
- */
-function inpaintWatermark(imageData, x, y, w, h, inpaintStrength) {
-  const { width, height, data } = imageData;
+function inpaintRegion(ctx, x, y, width, height, canvasWidth, canvasHeight) {
+  // Add padding around the detected region to sample from
+  const padding = 12;
+  const sampleX = Math.max(0, x - padding);
+  const sampleY = Math.max(0, y - padding);
+  const sampleW = Math.min(canvasWidth - sampleX, width + padding * 2);
+  const sampleH = Math.min(canvasHeight - sampleY, height + padding * 2);
 
-  // 1. Collect border pixels in 10px outer ring
-  const borderPixels = [];
-  const borderSx = Math.max(0, x - 10);
-  const borderEx = Math.min(width, x + w + 10);
-  const borderSy = Math.max(0, y - 10);
-  const borderEy = Math.min(height, y + h + 10);
+  // Get the full sample area pixel data
+  const sampleData = ctx.getImageData(sampleX, sampleY, sampleW, sampleH);
+  const pixels = sampleData.data;
 
-  for (let py = borderSy; py < borderEy; py++) {
-    for (let px = borderSx; px < borderEx; px++) {
-      if (px >= x && px < x + w && py >= y && py < y + h) {
-        continue;
-      }
-      const idx = (py * width + px) * 4;
-      borderPixels.push({
-        x: px,
-        y: py,
-        r: data[idx],
-        g: data[idx + 1],
-        b: data[idx + 2]
-      });
-    }
-  }
+  // Get just the region to fill
+  const regionData = ctx.getImageData(x, y, width, height);
+  const regionPixels = regionData.data;
 
-  if (borderPixels.length === 0) return;
+  // For every pixel inside the removal region, reconstruct it
+  // by sampling ONLY from the border ring (outside the watermark box)
+  // using distance-weighted average of surrounding border pixels
+  for (let py = 0; py < height; py++) {
+    for (let px = 0; px < width; px++) {
+      let totalR = 0, totalG = 0, totalB = 0, totalWeight = 0;
 
-  // 2. Fill the bounding box with distance-weighted average color (IDW)
-  for (let py = y; py < y + h; py++) {
-    for (let px = x; px < x + w; px++) {
-      let sumR = 0, sumG = 0, sumB = 0, sumW = 0;
-      let matchedExact = false;
+      // Sample from the border ring around the entire bounding box
+      // Top edge
+      for (let bx = -padding; bx < width + padding; bx++) {
+        for (let by = -padding; by < 0; by++) {
+          const sx = px - bx;
+          const sy = py - by;
+          const dist = Math.sqrt(sx * sx + sy * sy);
+          if (dist === 0) continue;
+          const weight = 1 / (dist * dist);
 
-      for (let i = 0; i < borderPixels.length; i++) {
-        const bp = borderPixels[i];
-        const dx = px - bp.x;
-        const dy = py - bp.y;
-        const distSq = dx * dx + dy * dy;
+          const absBx = x + bx - sampleX;
+          const absBy = y + by - sampleY;
+          if (absBx < 0 || absBy < 0 || absBx >= sampleW || absBy >= sampleH) continue;
 
-        if (distSq < 0.01) {
-          const idx = (py * width + px) * 4;
-          data[idx] = bp.r;
-          data[idx + 1] = bp.g;
-          data[idx + 2] = bp.b;
-          matchedExact = true;
-          break;
+          const idx = (absBy * sampleW + absBx) * 4;
+          totalR += pixels[idx] * weight;
+          totalG += pixels[idx + 1] * weight;
+          totalB += pixels[idx + 2] * weight;
+          totalWeight += weight;
         }
-
-        const weight = 1.0 / distSq;
-        sumR += bp.r * weight;
-        sumG += bp.g * weight;
-        sumB += bp.b * weight;
-        sumW += weight;
       }
 
-      if (!matchedExact && sumW > 0) {
-        const idx = (py * width + px) * 4;
-        data[idx] = sumR / sumW;
-        data[idx + 1] = sumG / sumW;
-        data[idx + 2] = sumB / sumW;
-      }
-    }
-  }
+      // Bottom edge
+      for (let bx = -padding; bx < width + padding; bx++) {
+        for (let by = height; by < height + padding; by++) {
+          const sx = px - bx;
+          const sy = py - by;
+          const dist = Math.sqrt(sx * sx + sy * sy);
+          if (dist === 0) continue;
+          const weight = 1 / (dist * dist);
 
-  // 3. Apply 1-pass box blur on boundary transition edges (controlled by inpaintStrength)
-  const blurRadius = Math.max(1, Math.min(10, inpaintStrength));
-  const srcData = new Uint8ClampedArray(data);
+          const absBx = x + bx - sampleX;
+          const absBy = y + by - sampleY;
+          if (absBx < 0 || absBy < 0 || absBx >= sampleW || absBy >= sampleH) continue;
 
-  function isNearBoundary(px, py) {
-    const distL = Math.abs(px - x);
-    const distR = Math.abs(px - (x + w));
-    const distT = Math.abs(py - y);
-    const distB = Math.abs(py - (y + h));
-
-    const inXRange = px >= x - blurRadius && px < x + w + blurRadius;
-    const inYRange = py >= y - blurRadius && py < y + h + blurRadius;
-
-    if (inXRange && inYRange) {
-      if (distL <= blurRadius || distR <= blurRadius || distT <= blurRadius || distB <= blurRadius) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  const startBx = Math.max(0, x - blurRadius * 2);
-  const endBx = Math.min(width, x + w + blurRadius * 2);
-  const startBy = Math.max(0, y - blurRadius * 2);
-  const endBy = Math.min(height, y + h + blurRadius * 2);
-
-  for (let py = startBy; py < endBy; py++) {
-    for (let px = startBx; px < endBx; px++) {
-      if (isNearBoundary(px, py)) {
-        let sumR = 0, sumG = 0, sumB = 0, count = 0;
-        for (let dy = -blurRadius; dy <= blurRadius; dy++) {
-          for (let dx = -blurRadius; dx <= blurRadius; dx++) {
-            const nx = px + dx;
-            const ny = py + dy;
-            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-              const nidx = (ny * width + nx) * 4;
-              sumR += srcData[nidx];
-              sumG += srcData[nidx + 1];
-              sumB += srcData[nidx + 2];
-              count++;
-            }
-          }
+          const idx = (absBy * sampleW + absBx) * 4;
+          totalR += pixels[idx] * weight;
+          totalG += pixels[idx + 1] * weight;
+          totalB += pixels[idx + 2] * weight;
+          totalWeight += weight;
         }
-        const idx = (py * width + px) * 4;
-        data[idx] = sumR / count;
-        data[idx + 1] = sumG / count;
-        data[idx + 2] = sumB / count;
+      }
+
+      // Left edge
+      for (let bx = -padding; bx < 0; bx++) {
+        for (let by = 0; by < height; by++) {
+          const sx = px - bx;
+          const sy = py - by;
+          const dist = Math.sqrt(sx * sx + sy * sy);
+          if (dist === 0) continue;
+          const weight = 1 / (dist * dist);
+
+          const absBx = x + bx - sampleX;
+          const absBy = y + by - sampleY;
+          if (absBx < 0 || absBy < 0 || absBx >= sampleW || absBy >= sampleH) continue;
+
+          const idx = (absBy * sampleW + absBx) * 4;
+          totalR += pixels[idx] * weight;
+          totalG += pixels[idx + 1] * weight;
+          totalB += pixels[idx + 2] * weight;
+          totalWeight += weight;
+        }
+      }
+
+      // Right edge
+      for (let bx = width; bx < width + padding; bx++) {
+        for (let by = 0; by < height; by++) {
+          const sx = px - bx;
+          const sy = py - by;
+          const dist = Math.sqrt(sx * sx + sy * sy);
+          if (dist === 0) continue;
+          const weight = 1 / (dist * dist);
+
+          const absBx = x + bx - sampleX;
+          const absBy = y + by - sampleY;
+          if (absBx < 0 || absBy < 0 || absBx >= sampleW || absBy >= sampleH) continue;
+
+          const idx = (absBy * sampleW + absBx) * 4;
+          totalR += pixels[idx] * weight;
+          totalG += pixels[idx + 1] * weight;
+          totalB += pixels[idx + 2] * weight;
+          totalWeight += weight;
+        }
+      }
+
+      if (totalWeight > 0) {
+        const i = (py * width + px) * 4;
+        regionPixels[i]     = Math.round(totalR / totalWeight);
+        regionPixels[i + 1] = Math.round(totalG / totalWeight);
+        regionPixels[i + 2] = Math.round(totalB / totalWeight);
+        regionPixels[i + 3] = 255;
       }
     }
   }
+
+  // Put the reconstructed region back
+  ctx.putImageData(regionData, x, y);
+
+  // Final step — apply a soft feather blur on just the filled region edges
+  // This removes any hard border line between filled and original pixels
+  featherEdges(ctx, x, y, width, height);
+}
+
+function featherEdges(ctx, x, y, width, height) {
+  // Get a slightly expanded area
+  const expand = 3;
+  const ex = Math.max(0, x - expand);
+  const ey = Math.max(0, y - expand);
+  const ew = width + expand * 2;
+  const eh = height + expand * 2;
+
+  const edgeData = ctx.getImageData(ex, ey, ew, eh);
+  const d = edgeData.data;
+  const copy = new Uint8ClampedArray(d);
+
+  // Apply a simple 3x3 box blur only on the border pixels (2px ring)
+  for (let row = 1; row < eh - 1; row++) {
+    for (let col = 1; col < ew - 1; col++) {
+      // Only blur pixels near the edge of the filled region
+      const inFillX = col >= expand && col < expand + width;
+      const inFillY = row >= expand && row < expand + height;
+      const nearEdgeX = col >= expand - 2 && col <= expand + width + 1;
+      const nearEdgeY = row >= expand - 2 && row <= expand + height + 1;
+      if (!(nearEdgeX && nearEdgeY && !(inFillX && inFillY && col > expand + 1 && col < expand + width - 2 && row > expand + 1 && row < expand + height - 2))) continue;
+
+      let r = 0, g = 0, b = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const ni = ((row + dy) * ew + (col + dx)) * 4;
+          r += copy[ni];
+          g += copy[ni + 1];
+          b += copy[ni + 2];
+        }
+      }
+      const i = (row * ew + col) * 4;
+      d[i]     = Math.round(r / 9);
+      d[i + 1] = Math.round(g / 9);
+      d[i + 2] = Math.round(b / 9);
+    }
+  }
+
+  ctx.putImageData(edgeData, ex, ey);
 }
