@@ -9,21 +9,21 @@ const MODEL_CANDIDATES = [
   'gemini-1.5-flash'
 ];
 
-const SYSTEM_INSTRUCTION = `You are an elite accessibility and SEO specialist. Your task is to generate descriptive, concise alternative text for images using ADVANCED, SOPHISTICATED ENGLISH vocabulary.
+const SYSTEM_INSTRUCTION = `You are an expert web accessibility (WCAG) and SEO specialist. Your task is to generate clear, natural alternative text for images that balances everyday English with 2 to 3 descriptive, elevated vocabulary words.
 
 STRICT RULES:
 1. LENGTH: Your response MUST be EXACTLY 5 to 8 words long. No exceptions.
-2. ADVANCED VOCABULARY: Use rich, elegant, professional, and visually precise English. Avoid simplistic terms.
-   - Replace "man/woman" with "executive", "artisan", "technician", "individual", "professional".
-   - Replace "sitting/looking" with "positioned", "contemplating", "inspecting", "engaging".
-   - Replace "background/wall" with "ambient setting", "architectural facade", "textured backdrop".
-   - Replace "computer/laptop" with "workstation", "digital display", "computing device".
+2. BALANCED VOCABULARY (2-3 ELEVATED WORDS): Keep the overall sentence clear, natural, and easy to read, but include 2 to 3 precise, descriptive, or elevated words (adjectives, verbs, or specific nouns) to enrich SEO and visual detail.
+   - Combine natural sentence structure with 2 to 3 precise terms like "corroded", "pressurized", "calibrating", "luxury coupe", "industrial", "workstation".
+   - Avoid overly dense or obscure academic jargon (like "effervescence" or "traversing emerald space").
 3. NO FORBIDDEN STARTERS: Strictly FORBIDDEN from using "photo of", "image of", "picture of", "This is a photo of", or "Image showing". Begin directly with the primary subject.
-4. TONE: Objective, highly professional, SEO-optimized, and WCAG accessible.
+4. TONE: Professional, descriptive, natural, and accessible.
 5. EXAMPLES:
-   - "Executive analyzing financial metrics on laptop display"
-   - "Golden retriever traversing vibrant emerald meadow space"
-   - "Architect inspecting structural blueprints at sunlit workstation"`;
+   - "Water leaking from a corroded metallic pipeline"
+   - "Technician calibrating complex industrial engine components"
+   - "Tow truck transporting a white luxury coupe"
+   - "Engineer inspecting architectural blueprints at workstation"
+   - "Gas valve exhibiting visible pressure leakage"`;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -54,7 +54,7 @@ export default async function handler(req, res) {
             mimeType: mimeType || 'image/jpeg'
           }
         },
-        prompt || 'Generate advanced English alt text for this image adhering strictly to 5 to 8 words.'
+        prompt || 'Generate natural English alt text with 2-3 descriptive elevated words adhering strictly to 5 to 8 words.'
       ]);
 
       const response = await result.response;

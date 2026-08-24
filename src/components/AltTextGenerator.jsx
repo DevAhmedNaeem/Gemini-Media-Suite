@@ -6,22 +6,22 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const HARDCODED_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
-// System instruction using Advanced, Sophisticated English vocabulary
-const SYSTEM_INSTRUCTION = `You are an elite accessibility and SEO specialist. Your task is to generate descriptive, concise alternative text for images using ADVANCED, SOPHISTICATED ENGLISH vocabulary.
+// System instruction balancing natural English with 2-3 elevated descriptive words
+const SYSTEM_INSTRUCTION = `You are an expert web accessibility (WCAG) and SEO specialist. Your task is to generate clear, natural alternative text for images that balances everyday English with 2 to 3 descriptive, elevated vocabulary words.
 
 STRICT RULES:
 1. LENGTH: Your response MUST be EXACTLY 5 to 8 words long. No exceptions.
-2. ADVANCED VOCABULARY: Use rich, elegant, professional, and visually precise English. Avoid simplistic terms.
-   - Replace "man/woman" with "executive", "artisan", "technician", "individual", "professional".
-   - Replace "sitting/looking" with "positioned", "contemplating", "inspecting", "engaging".
-   - Replace "background/wall" with "ambient setting", "architectural facade", "textured backdrop".
-   - Replace "computer/laptop" with "workstation", "digital display", "computing device".
+2. BALANCED VOCABULARY (2-3 ELEVATED WORDS): Keep the overall sentence clear, natural, and easy to read, but include 2 to 3 precise, descriptive, or elevated words (adjectives, verbs, or specific nouns) to enrich SEO and visual detail.
+   - Combine natural sentence structure with 2 to 3 precise terms like "corroded", "pressurized", "calibrating", "luxury coupe", "industrial", "workstation".
+   - Avoid overly dense or obscure academic jargon (like "effervescence" or "traversing emerald space").
 3. NO FORBIDDEN STARTERS: Strictly FORBIDDEN from using "photo of", "image of", "picture of", "This is a photo of", or "Image showing". Begin directly with the primary subject.
-4. TONE: Objective, highly professional, SEO-optimized, and WCAG accessible.
+4. TONE: Professional, descriptive, natural, and accessible.
 5. EXAMPLES:
-   - "Executive analyzing financial metrics on laptop display"
-   - "Golden retriever traversing vibrant emerald meadow space"
-   - "Architect inspecting structural blueprints at sunlit workstation"`;
+   - "Water leaking from a corroded metallic pipeline"
+   - "Technician calibrating complex industrial engine components"
+   - "Tow truck transporting a white luxury coupe"
+   - "Engineer inspecting architectural blueprints at workstation"
+   - "Gas valve exhibiting visible pressure leakage"`;
 
 const MODEL_CANDIDATES = [
   'gemini-2.5-flash',
@@ -417,9 +417,9 @@ export default function AltTextGenerator() {
         for (let attempt = 1; attempt <= 3; attempt++) {
           if (cancelRequestedRef.current) return false;
 
-          let promptText = 'Describe this image in detail using advanced, sophisticated English adhering to your system instruction. Write EXACTLY 5 to 8 words.';
+          let promptText = 'Describe this image in clear English using 2 to 3 elevated descriptive words adhering to your system instruction. Write EXACTLY 5 to 8 words.';
           if (attempt > 1) {
-            promptText = `Previous response was not 5-8 words. Write an alt text description of this image in advanced English that is STRICTLY between 5 and 8 words long. Do not use 'photo of' or 'image of'.`;
+            promptText = `Previous response was not 5-8 words. Write an alt text description of this image in clear English with 2-3 elevated words that is STRICTLY between 5 and 8 words long. Do not use 'photo of' or 'image of'.`;
           }
 
           const raw = await generateWithSdkFallback(genAI, base64Image, mimeType, promptText, onTransientPause);
@@ -438,7 +438,7 @@ export default function AltTextGenerator() {
           body: JSON.stringify({
             base64Image,
             mimeType,
-            prompt: 'Generate advanced English WCAG alt text for this image. Output MUST be exactly 5 to 8 words long.'
+            prompt: 'Generate clear WCAG alt text with 2-3 elevated descriptive words. Output MUST be exactly 5 to 8 words long.'
           })
         });
 
@@ -527,7 +527,7 @@ export default function AltTextGenerator() {
             origin: { y: 0.6 },
             colors: ['#7C3AED', '#4F46E5', '#10B981']
           });
-          setShowToast('Successfully generated advanced English alt text for all images!');
+          setShowToast('Successfully generated alt text for all images!');
         } else {
           setShowToast('Processing finished! Transient server spikes were automatically retried.');
         }
