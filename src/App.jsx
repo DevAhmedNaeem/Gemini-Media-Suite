@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Sparkles, Download, UploadCloud, FolderClosed, Check, X, Loader2, AlertCircle, RefreshCw, Scale, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import { Sparkles, Download, UploadCloud, FolderClosed, Check, X, Loader2, AlertCircle, RefreshCw, Scale, ChevronLeft, ChevronRight } from 'lucide-react';
 import JSZip from 'jszip';
 import confetti from 'canvas-confetti';
 
 // Import our custom bulk processor hook
 import { useBulkProcessor } from './hooks/useBulkProcessor';
 import ImageResizer from './components/ImageResizer';
-import AltTextGenerator from './components/AltTextGenerator';
 
 
 // Helper: recursively traverse directory entries for drag and drop folder uploads
@@ -350,18 +349,6 @@ export default function App() {
               <span className="hidden md:inline">Image Resizer</span>
               <span className="md:hidden">Resizer</span>
             </button>
-            <button
-              onClick={() => setActiveTab('alt-text')}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-300 ${
-                activeTab === 'alt-text'
-                  ? 'premium-tab-active'
-                  : 'premium-tab-inactive'
-              }`}
-            >
-              <FileText size={13} className="shrink-0" />
-              <span className="hidden md:inline">Alt Text Generator</span>
-              <span className="md:hidden">Alt Text</span>
-            </button>
           </div>
         </div>
 
@@ -664,8 +651,6 @@ export default function App() {
           </div>
           )) : activeTab === 'resizer' ? (
             <ImageResizer />
-          ) : activeTab === 'alt-text' ? (
-            <AltTextGenerator />
           ) : null}
       </main>
 
