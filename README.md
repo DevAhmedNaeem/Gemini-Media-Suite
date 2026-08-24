@@ -1,6 +1,6 @@
-# Gemini Media Suite - Watermark Remover, Image Resizer & Alt Text Generator
+# Gemini Media Suite - Watermark Remover & Image Resizer
 
-A high-performance web application containing a powerful multi-tab media suite: Gemini Watermark Remover, Bulk Image Resizer & Optimizer, and AI Alt Text Generator. Built using React 18, TailwindCSS, Google Generative AI SDK, and JavaScript Web Workers for an all-in-one client-side image production workflow.
+A high-performance web application containing a powerful multi-tab media suite: Gemini Watermark Remover and Bulk Image Resizer & Optimizer. Built using React 18, TailwindCSS, and JavaScript Web Workers for an all-in-one client-side image production workflow.
 
 ---
 
@@ -19,14 +19,6 @@ Streamlined bulk image resizer tailored for high-speed offline size constraints:
 * **Target File Size Compression**: Web Worker runs an iterative binary search over canvas export quality to fit target KB limits.
 * **Directory Tree Preserving ZIP Exporter**: Supports folder uploads and generates nested ZIP archives matching original directory structures.
 
-### 3. AI Alt Text Generator (Gemini Powered)
-Automated WCAG-compliant and SEO-optimized alt text generator powered by Gemini Flash models:
-* **Multi-Model Candidate Rotation**: Cycles across Gemini Flash models (`gemini-2.5-flash`, `gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-flash-latest`) to maximize quota pools.
-* **Strict Word Count Constraint**: Enforces word count validation (5 to 8 words) for screen reader clarity and SEO.
-* **Anti-Redundancy Filters**: Strips non-accessible starter phrases like "photo of" or "image of".
-* **Rate-Limit & Spike Backoff Engine**: Handles server rate limits gracefully with background retry logic.
-* **Direct Image Renaming on ZIP Export**: Exported ZIP archives rename files directly with generated Alt Text strings.
-
 ---
 
 ## Key Features
@@ -43,7 +35,6 @@ Automated WCAG-compliant and SEO-optimized alt text generator powered by Gemini 
 
 * React 18
 * Vite
-* Google Generative AI SDK (`@google/generative-ai`)
 * TailwindCSS 3
 * HTML5 Canvas & Web Workers
 * JSZip
