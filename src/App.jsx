@@ -307,85 +307,88 @@ export default function App() {
       />
 
       {/* ZONE A — TOP HEADER */}
-      <header className="premium-navbar px-6 flex items-center justify-between shrink-0 sticky top-0 z-40 relative">
-        <div className="flex items-center gap-6">
+      <header className="premium-navbar px-3 sm:px-6 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 sm:gap-3 shrink-0 sticky top-0 z-40 relative">
+        <div className="flex items-center gap-2.5 sm:gap-6 overflow-x-auto no-scrollbar max-w-full">
           <div 
             onClick={() => {
               clearQueue();
               setActiveTab('watermark');
             }}
-            className="flex items-center gap-2.5 cursor-pointer hover:opacity-90 active:scale-95 transition-all select-none"
+            className="flex items-center gap-2 cursor-pointer hover:opacity-90 active:scale-95 transition-all select-none shrink-0"
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#7C3AED] to-[#4F46E5] flex items-center justify-center shadow-lg shadow-[#7C3AED]/20">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#7C3AED] to-[#4F46E5] flex items-center justify-center shadow-lg shadow-[#7C3AED]/20 shrink-0">
               <Sparkles className="w-4 h-4 text-white animate-pulse" />
             </div>
-            <span className="font-semibold text-base tracking-tight text-white font-display text-glow premium-logo-text hidden sm:block">
+            <span className="font-semibold text-sm sm:text-base tracking-tight text-white font-display text-glow premium-logo-text hidden sm:block">
               Gemini Tools
             </span>
           </div>
 
           {/* Navigation Tab Bar */}
-          <div className="flex bg-[#121218]/90 border border-[#2E2E38] rounded-xl p-1 shrink-0 transition-all duration-300">
+          <div className="flex bg-[#121218]/90 border border-[#2E2E38] rounded-xl p-1 shrink-0 overflow-x-auto no-scrollbar transition-all duration-300">
             <button
               onClick={() => setActiveTab('watermark')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-300 ${
                 activeTab === 'watermark'
                   ? 'premium-tab-active'
                   : 'premium-tab-inactive'
               }`}
             >
-              <Sparkles size={13} />
-              Watermark Remover
+              <Sparkles size={13} className="shrink-0" />
+              <span className="hidden md:inline">Watermark Remover</span>
+              <span className="md:hidden">Watermark</span>
             </button>
             <button
               onClick={() => setActiveTab('resizer')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-300 ${
                 activeTab === 'resizer'
                   ? 'premium-tab-active'
                   : 'premium-tab-inactive'
               }`}
             >
-              <Scale size={13} />
-              Image Resizer
+              <Scale size={13} className="shrink-0" />
+              <span className="hidden md:inline">Image Resizer</span>
+              <span className="md:hidden">Resizer</span>
             </button>
             <button
               onClick={() => setActiveTab('alt-text')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-300 ${
                 activeTab === 'alt-text'
                   ? 'premium-tab-active'
                   : 'premium-tab-inactive'
               }`}
             >
-              <FileText size={13} />
-              Alt Text Generator
+              <FileText size={13} className="shrink-0" />
+              <span className="hidden md:inline">Alt Text Generator</span>
+              <span className="md:hidden">Alt Text</span>
             </button>
-
           </div>
         </div>
 
         {/* Right side Actions & Credit Badge */}
-        <div className="flex items-center gap-4 z-10">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0 z-10">
           {activeTab === 'watermark' && stats.removed > 0 && !isProcessing && (
             <button
               onClick={handleDownloadAll}
               disabled={isZipping}
-              className="flex items-center gap-2 bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] hover:opacity-95 text-[#E8E8F0] font-semibold text-xs px-4 py-2 rounded-lg transition-all shadow-md shadow-[#7C3AED]/20 disabled:opacity-50"
+              className="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] hover:opacity-95 text-[#E8E8F0] font-semibold text-xs px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all shadow-md shadow-[#7C3AED]/20 disabled:opacity-50"
             >
               {isZipping ? (
                 <>
-                  <Loader2 size={14} className="animate-spin" />
-                  Zipping...
+                  <Loader2 size={13} className="animate-spin shrink-0" />
+                  <span className="hidden sm:inline">Zipping...</span>
                 </>
               ) : (
                 <>
-                  <Download size={14} />
-                  Download All Cleaned
+                  <Download size={13} className="shrink-0" />
+                  <span className="hidden sm:inline">Download All Cleaned</span>
+                  <span className="sm:hidden">Download All</span>
                 </>
               )}
             </button>
           )}
 
-          <span className="text-xs font-semibold tracking-wide font-mono premium-badge hidden md:inline-flex">
+          <span className="text-xs font-semibold tracking-wide font-mono premium-badge hidden lg:inline-flex">
             Built By Ahmed Naeem
           </span>
         </div>
@@ -396,39 +399,39 @@ export default function App() {
         {activeTab === 'watermark' ? (
           queue.length === 0 ? (
           /* ZONE B — UPLOAD AREA (empty state) */
-          <div className="flex-1 flex items-center justify-center p-8">
+          <div className="flex-1 flex items-center justify-center p-4 sm:p-8 overflow-y-auto">
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={handleSelectFiles}
-              className={`w-full max-w-2xl aspect-[16/10] flex flex-col items-center justify-center gap-6 cursor-pointer p-8 premium-transition premium-dropzone ${
+              className={`w-full max-w-2xl min-h-[280px] sm:min-h-[340px] sm:aspect-[16/10] flex flex-col items-center justify-center gap-5 sm:gap-6 cursor-pointer p-6 sm:p-8 premium-transition premium-dropzone ${
                 isDragging ? 'premium-dropzone-dragging' : ''
               }`}
             >
-              <div className="w-16 h-16 rounded-2xl bg-[#181822] border border-[#2E2E38] flex items-center justify-center shadow-md">
-                <UploadCloud className={`w-8 h-8 premium-dropzone-icon transition-colors`} />
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#181822] border border-[#2E2E38] flex items-center justify-center shadow-md shrink-0">
+                <UploadCloud className="w-7 h-7 sm:w-8 sm:h-8 premium-dropzone-icon transition-colors" />
               </div>
 
-              <div className="text-center">
-                <p className="text-lg font-semibold premium-dropzone-text">
+              <div className="text-center px-2">
+                <p className="text-base sm:text-lg font-semibold premium-dropzone-text">
                   Drop a folder or images here
                 </p>
-                <p className="text-sm text-[#888896] mt-1.5 font-sans">
+                <p className="text-xs sm:text-sm text-[#888896] mt-1 sm:mt-1.5 font-sans">
                   Supports JPG, PNG, WEBP — any quantity
                 </p>
               </div>
 
-              <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+              <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 w-full sm:w-auto" onClick={(e) => e.stopPropagation()}>
                 <button
                    onClick={handleSelectFiles}
-                   className="premium-secondary-button text-xs font-semibold px-5 py-2.5 rounded-xl transition-all"
+                   className="premium-secondary-button text-xs font-semibold px-4 sm:px-5 py-2.5 rounded-xl transition-all w-full sm:w-auto text-center"
                 >
                   Choose Images
                 </button>
                 <button
                   onClick={handleSelectFolder}
-                  className="premium-secondary-button text-xs font-semibold px-5 py-2.5 rounded-xl transition-all flex items-center gap-1.5"
+                  className="premium-secondary-button text-xs font-semibold px-4 sm:px-5 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 w-full sm:w-auto text-center"
                 >
                   <FolderClosed size={14} className="text-[#888896]" />
                   Select Folder
@@ -438,12 +441,12 @@ export default function App() {
           </div>
         ) : (
           /* ZONE C — PROCESSING VIEW */
-          <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
             {/* LEFT COLUMN — Image grid */}
-            <div className="w-[65%] h-full flex flex-col p-6 overflow-y-auto">
-              <div className="flex items-center justify-between mb-5 shrink-0">
+            <div className="w-full lg:flex-1 h-auto lg:h-full flex flex-col p-4 sm:p-6 overflow-y-auto order-2 lg:order-1">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-5 shrink-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-semibold text-white tracking-wide uppercase">
+                  <h2 className="text-xs sm:text-sm font-semibold text-white tracking-wide uppercase">
                     Queue Items
                   </h2>
                   <span className="bg-[#181822] border border-[#2E2E38] px-2 py-0.5 rounded-full text-xs font-mono text-[#888896]">
@@ -462,7 +465,7 @@ export default function App() {
               </div>
 
               {/* Grid Layout */}
-              <div className="grid grid-cols-4 gap-4 pb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3.5 sm:gap-4 pb-8">
                 {queue.map((item) => {
                   let badgeBg = 'bg-[#181822] text-[#888896] border-[#2A2A35]';
                   let badgeText = 'Waiting';
@@ -547,14 +550,14 @@ export default function App() {
               </div>
             </div>
 
-            {/* RIGHT COLUMN — Control panel (Only settings area) */}
-            <div className="w-[35%] h-full border-l border-[#1C1C24] bg-[#121218] flex flex-col p-6 overflow-y-auto">
-              <div className="flex flex-col gap-6 flex-1">
+            {/* RIGHT/SIDE COLUMN — Control panel */}
+            <div className="w-full lg:w-[360px] xl:w-[400px] shrink-0 border-t lg:border-t-0 lg:border-l border-[#1C1C24] bg-[#121218] flex flex-col p-4 sm:p-6 overflow-y-auto order-1 lg:order-2">
+              <div className="flex flex-col gap-5 sm:gap-6 flex-1">
                 {/* Big Primary Button */}
                 <button
                   onClick={startProcessing}
                   disabled={isProcessing}
-                  className="w-full py-4 rounded-xl text-white text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed premium-button"
+                  className="w-full py-3.5 sm:py-4 rounded-xl text-white text-xs sm:text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed premium-button"
                 >
                   {isProcessing ? (
                     <>
@@ -628,7 +631,7 @@ export default function App() {
                     value={inpaintStrength}
                     onChange={(e) => setInpaintStrength(parseInt(e.target.value))}
                     disabled={isProcessing}
-                    className="premium-slider disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="premium-slider disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                   />
 
                   <p className="text-[10px] text-[#888896] leading-relaxed">
@@ -638,7 +641,7 @@ export default function App() {
               </div>
 
               {/* Lower Download Button */}
-              <div className="pt-6 border-t border-[#1C1C24] shrink-0">
+              <div className="pt-4 sm:pt-6 border-t border-[#1C1C24] shrink-0 mt-4 sm:mt-0">
                 <button
                   onClick={handleDownloadAll}
                   disabled={isProcessing || stats.removed === 0 || isZipping}
@@ -668,17 +671,19 @@ export default function App() {
 
       {/* FLOATING TOAST NOTIFICATION */}
       {showToast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#18181F] border border-[#10B981] px-5 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-slide-in">
-          <div className="bg-[#10B981]/20 text-[#10B981] p-1.5 rounded-lg">
-            <Check size={18} className="stroke-[3]" />
-          </div>
-          <div>
-            <p className="text-white font-semibold text-sm">Removal Complete</p>
-            <p className="text-[#888896] text-xs mt-0.5">{showToast}</p>
+        <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-md z-50 bg-[#18181F] border border-[#10B981] px-4 py-3 sm:px-5 sm:py-4 rounded-xl shadow-2xl flex items-center justify-between gap-3 animate-slide-in">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="bg-[#10B981]/20 text-[#10B981] p-1.5 rounded-lg shrink-0">
+              <Check size={18} className="stroke-[3]" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-white font-semibold text-xs sm:text-sm">Removal Complete</p>
+              <p className="text-[#888896] text-[11px] sm:text-xs mt-0.5 truncate">{showToast}</p>
+            </div>
           </div>
           <button
             onClick={() => setShowToast(null)}
-            className="text-[#888896] hover:text-[#E8E8F0] ml-2"
+            className="text-[#888896] hover:text-[#E8E8F0] p-1 shrink-0"
           >
             <X size={15} />
           </button>

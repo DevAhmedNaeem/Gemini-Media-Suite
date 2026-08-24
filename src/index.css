@@ -40,6 +40,13 @@
   .text-glow {
     text-shadow: 0 0 12px rgba(139, 92, 246, 0.45);
   }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none !important;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+  }
 }
 
 /* Page Background Radial */
@@ -49,12 +56,19 @@
 
 /* NAVBAR ENHANCEMENTS */
 .premium-navbar {
-  padding-top: 1.25rem !important; /* py-5 / taller navbar */
-  padding-bottom: 1.25rem !important;
+  padding-top: 0.875rem !important;
+  padding-bottom: 0.875rem !important;
   border-bottom: 1px solid rgba(139, 92, 246, 0.3) !important;
-  background: rgba(13, 13, 16, 0.85) !important;
+  background: rgba(13, 13, 16, 0.9) !important;
   backdrop-filter: blur(16px) !important;
   transition: all 0.3s ease !important;
+}
+
+@media (min-width: 640px) {
+  .premium-navbar {
+    padding-top: 1.15rem !important;
+    padding-bottom: 1.15rem !important;
+  }
 }
 
 .premium-logo-text {

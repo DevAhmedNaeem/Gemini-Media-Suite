@@ -644,39 +644,39 @@ export default function AltTextGenerator() {
 
       {queue.length === 0 ? (
         /* Empty State Drop Zone */
-        <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#0D0D10]">
+        <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 bg-[#0D0D10] overflow-y-auto">
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={handleSelectFiles}
-            className={`w-full max-w-2xl aspect-[16/10] flex flex-col items-center justify-center gap-6 cursor-pointer p-8 premium-transition premium-dropzone ${
+            className={`w-full max-w-2xl min-h-[280px] sm:min-h-[340px] sm:aspect-[16/10] flex flex-col items-center justify-center gap-5 sm:gap-6 cursor-pointer p-6 sm:p-8 premium-transition premium-dropzone ${
               isDragging ? 'premium-dropzone-dragging' : ''
             }`}
           >
-            <div className="w-16 h-16 rounded-2xl bg-[#181822] border border-[#2E2E38] flex items-center justify-center shadow-md">
-              <UploadCloud className="w-8 h-8 premium-dropzone-icon transition-colors" />
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#181822] border border-[#2E2E38] flex items-center justify-center shadow-md shrink-0">
+              <UploadCloud className="w-7 h-7 sm:w-8 sm:h-8 premium-dropzone-icon transition-colors" />
             </div>
 
-            <div className="text-center">
-              <p className="text-lg font-semibold premium-dropzone-text">
+            <div className="text-center px-2">
+              <p className="text-base sm:text-lg font-semibold premium-dropzone-text">
                 Drop folder or images to generate Alt Text
               </p>
-              <p className="text-sm text-[#888896] mt-1.5 font-sans">
+              <p className="text-xs sm:text-sm text-[#888896] mt-1 sm:mt-1.5 font-sans">
                 Generates 5 to 8 word WCAG & SEO accessible alt tags
               </p>
             </div>
 
-            <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 w-full sm:w-auto" onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={handleSelectFiles}
-                className="premium-secondary-button text-xs font-semibold px-5 py-2.5 rounded-xl transition-all"
+                className="premium-secondary-button text-xs font-semibold px-4 sm:px-5 py-2.5 rounded-xl transition-all w-full sm:w-auto text-center"
               >
                 Choose Images
               </button>
               <button
                 onClick={handleSelectFolder}
-                className="premium-secondary-button text-xs font-semibold px-5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all"
+                className="premium-secondary-button text-xs font-semibold px-4 sm:px-5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all w-full sm:w-auto text-center"
               >
                 <FolderClosed size={14} className="text-[#888896]" />
                 Select Folder
@@ -686,10 +686,10 @@ export default function AltTextGenerator() {
         </div>
       ) : (
         /* Workspace Active State */
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
           {/* Left Column: Image Queue */}
-          <div className="w-[62%] h-full flex flex-col p-6 overflow-y-auto bg-[#0D0D10]">
-            <div className="flex items-center justify-between mb-5 shrink-0">
+          <div className="w-full lg:flex-1 h-auto lg:h-full flex flex-col p-4 sm:p-6 overflow-y-auto bg-[#0D0D10] order-2 lg:order-1">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-5 shrink-0">
               <div className="flex items-center gap-2">
                 <h2 className="text-xs font-bold text-white tracking-wider uppercase font-display text-glow">
                   Alt Text Queue
@@ -706,7 +706,7 @@ export default function AltTextGenerator() {
                     className="text-xs text-[#7C3AED] hover:text-[#93C5FD] flex items-center gap-1 transition-colors font-semibold"
                   >
                     <Copy size={12} />
-                    Copy All Texts
+                    <span>Copy All</span>
                   </button>
                 )}
                 <button
@@ -715,7 +715,7 @@ export default function AltTextGenerator() {
                   className="text-xs text-[#888896] hover:text-white disabled:opacity-40 flex items-center gap-1 transition-colors"
                 >
                   <RefreshCw size={12} className={isProcessing ? 'animate-spin' : ''} />
-                  Clear All
+                  <span>Clear All</span>
                 </button>
               </div>
             </div>
@@ -750,26 +750,45 @@ export default function AltTextGenerator() {
                 return (
                   <div
                     key={item.id}
-                    className="flex flex-col bg-[#18181F] border border-[#2E2E38]/50 hover:border-[#3B3B48] rounded-xl overflow-hidden shadow-md transition-all duration-300 p-3.5 gap-2.5 relative"
+                    className="flex flex-col bg-[#18181F] border border-[#2E2E38]/50 hover:border-[#3B3B48] rounded-xl overflow-hidden shadow-md transition-all duration-300 p-3 sm:p-3.5 gap-2.5 relative"
                   >
-                    <div className="flex items-center gap-4">
-                      {/* Thumbnail */}
-                      <div className="w-16 h-16 bg-[#0D0D10] rounded-lg overflow-hidden shrink-0 relative">
-                        <img
-                          src={item.previewUrl}
-                          alt={item.name}
-                          className="w-full h-full object-cover select-none pointer-events-none"
-                        />
-                        {item.status === 'processing' && (
-                          <div className="absolute inset-0 bg-[#0D0D10]/70 flex items-center justify-center">
-                            <Loader2 className="w-5 h-5 text-[#7C3AED] animate-spin" />
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                      {/* Thumbnail & File Details on mobile */}
+                      <div className="flex items-center gap-3 sm:block">
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 bg-[#0D0D10] rounded-lg overflow-hidden shrink-0 relative">
+                          <img
+                            src={item.previewUrl}
+                            alt={item.name}
+                            className="w-full h-full object-cover select-none pointer-events-none"
+                          />
+                          {item.status === 'processing' && (
+                            <div className="absolute inset-0 bg-[#0D0D10]/70 flex items-center justify-center">
+                              <Loader2 className="w-5 h-5 text-[#7C3AED] animate-spin" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Filename & Badges visible on mobile next to thumbnail */}
+                        <div className="min-w-0 flex-1 sm:hidden space-y-1">
+                          <span title={item.name} className="text-xs font-semibold text-white truncate block">
+                            {item.name}
+                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono border ${badgeBg}`}>
+                              {badgeText}
+                            </span>
+                            {item.altText && (
+                              <span className="text-[9px] font-mono text-[#888896] bg-[#121218] px-1.5 py-0.5 rounded border border-[#2A2A35]">
+                                {wordCount} words
+                              </span>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
 
-                      {/* Metadata & Alt Text Input */}
+                      {/* Metadata & Alt Text Input for desktop / full width */}
                       <div className="flex-1 min-w-0 space-y-2">
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="hidden sm:flex items-center justify-between gap-2">
                           <div className="min-w-0 flex items-center gap-2">
                             <span title={item.name} className="text-xs font-semibold text-white truncate block">
                               {item.name}
@@ -808,7 +827,7 @@ export default function AltTextGenerator() {
                             }
                             onChange={(e) => handleAltTextChange(item.id, e.target.value)}
                             disabled={item.status === 'processing'}
-                            className="flex-1 bg-[#09090d] border border-[#2E2E38] rounded px-3 py-1.5 text-xs text-[#E8E8F0] focus:border-[#7C3AED] focus:outline-none"
+                            className="flex-1 min-w-0 bg-[#09090d] border border-[#2E2E38] rounded px-3 py-1.5 text-xs text-[#E8E8F0] focus:border-[#7C3AED] focus:outline-none"
                           />
                           <button
                             onClick={() => copyToClipboard(item.id, item.altText)}
@@ -845,7 +864,7 @@ export default function AltTextGenerator() {
                           ) : (
                             <AlertCircle size={14} className="text-[#EF4444] shrink-0 mt-0.5" />
                           )}
-                          <span className="leading-snug">{item.errorMessage}</span>
+                          <span className="leading-snug text-[11px] sm:text-xs">{item.errorMessage}</span>
                         </div>
                       </div>
                     )}
@@ -856,8 +875,8 @@ export default function AltTextGenerator() {
           </div>
 
           {/* Right Column: Control Panel */}
-          <div className="w-[38%] h-full border-l border-[#1C1C24] bg-[#121218] flex flex-col p-6 overflow-y-auto">
-            <div className="space-y-6 flex-1">
+          <div className="w-full lg:w-[360px] xl:w-[400px] shrink-0 border-t lg:border-t-0 lg:border-l border-[#1C1C24] bg-[#121218] flex flex-col p-4 sm:p-6 overflow-y-auto order-1 lg:order-2">
+            <div className="space-y-5 sm:space-y-6 flex-1">
 
               {/* Action Buttons */}
               <div className="space-y-2">
@@ -865,7 +884,7 @@ export default function AltTextGenerator() {
                   <button
                     onClick={startProcessing}
                     disabled={queue.length === 0}
-                    className="w-full py-4 rounded-xl text-white text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed premium-button"
+                    className="w-full py-3.5 sm:py-4 rounded-xl text-white text-xs sm:text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed premium-button"
                   >
                     <Wand2 size={16} />
                     Generate Alt Texts
@@ -873,7 +892,7 @@ export default function AltTextGenerator() {
                 ) : (
                   <button
                     onClick={stopProcessing}
-                    className="w-full py-4 rounded-xl text-white text-sm flex items-center justify-center gap-2 bg-[#EF4444]/90 border border-[#EF4444]/30 hover:bg-[#EF4444] transition-all font-semibold uppercase tracking-wider"
+                    className="w-full py-3.5 sm:py-4 rounded-xl text-white text-xs sm:text-sm flex items-center justify-center gap-2 bg-[#EF4444]/90 border border-[#EF4444]/30 hover:bg-[#EF4444] transition-all font-semibold uppercase tracking-wider"
                   >
                     <Loader2 size={16} className="animate-spin" />
                     Stop Processing
@@ -909,7 +928,7 @@ export default function AltTextGenerator() {
                     <button
                       onClick={handleDownloadAllZip}
                       disabled={isZipping}
-                      className="w-full py-3.5 rounded-xl font-semibold bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] hover:opacity-95 text-white flex items-center justify-center gap-2 transition-all shadow-md shadow-[#7C3AED]/20"
+                      className="w-full py-3.5 rounded-xl font-semibold bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] hover:opacity-95 text-white flex items-center justify-center gap-2 transition-all shadow-md shadow-[#7C3AED]/20 text-xs sm:text-sm"
                     >
                       {isZipping ? (
                         <>
@@ -934,17 +953,19 @@ export default function AltTextGenerator() {
 
       {/* FLOATING TOAST NOTIFICATION */}
       {showToast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#18181F] border border-[#10B981] px-5 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-slide-in">
-          <div className="bg-[#10B981]/20 text-[#10B981] p-1.5 rounded-lg">
-            <Check size={18} className="stroke-[3]" />
-          </div>
-          <div>
-            <p className="text-white font-semibold text-sm">Alt Text Generator</p>
-            <p className="text-[#888896] text-xs mt-0.5">{showToast}</p>
+        <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-md z-50 bg-[#18181F] border border-[#10B981] px-4 py-3 sm:px-5 sm:py-4 rounded-xl shadow-2xl flex items-center justify-between gap-3 animate-slide-in">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="bg-[#10B981]/20 text-[#10B981] p-1.5 rounded-lg shrink-0">
+              <Check size={18} className="stroke-[3]" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-white font-semibold text-xs sm:text-sm">Alt Text Generator</p>
+              <p className="text-[#888896] text-[11px] sm:text-xs mt-0.5 truncate">{showToast}</p>
+            </div>
           </div>
           <button
             onClick={() => setShowToast(null)}
-            className="text-[#888896] hover:text-[#E8E8F0] ml-2"
+            className="text-[#888896] hover:text-[#E8E8F0] p-1 shrink-0"
           >
             <X size={15} />
           </button>

@@ -494,39 +494,39 @@ export default function ImageResizer() {
 
       {queue.length === 0 ? (
         /* Empty State Drop Zone */
-        <div className="flex-1 flex items-center justify-center p-8 bg-[#0D0D10]">
+        <div className="flex-1 flex items-center justify-center p-4 sm:p-8 bg-[#0D0D10] overflow-y-auto">
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={handleSelectFiles}
-            className={`w-full max-w-2xl aspect-[16/10] flex flex-col items-center justify-center gap-6 cursor-pointer p-8 premium-transition premium-dropzone ${
+            className={`w-full max-w-2xl min-h-[280px] sm:min-h-[340px] sm:aspect-[16/10] flex flex-col items-center justify-center gap-5 sm:gap-6 cursor-pointer p-6 sm:p-8 premium-transition premium-dropzone ${
               isDragging ? 'premium-dropzone-dragging' : ''
             }`}
           >
-            <div className="w-16 h-16 rounded-2xl bg-[#181822] border border-[#2E2E38] flex items-center justify-center shadow-md">
-              <UploadCloud className={`w-8 h-8 premium-dropzone-icon transition-colors`} />
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#181822] border border-[#2E2E38] flex items-center justify-center shadow-md shrink-0">
+              <UploadCloud className="w-7 h-7 sm:w-8 sm:h-8 premium-dropzone-icon transition-colors" />
             </div>
 
-            <div className="text-center">
-              <p className="text-lg font-semibold premium-dropzone-text">
+            <div className="text-center px-2">
+              <p className="text-base sm:text-lg font-semibold premium-dropzone-text">
                 Drop folder or images to resize
               </p>
-              <p className="text-sm text-[#888896] mt-1.5 font-sans">
+              <p className="text-xs sm:text-sm text-[#888896] mt-1 sm:mt-1.5 font-sans">
                 Supports JPG, PNG, WEBP, GIF — Offline, locally in your browser
               </p>
             </div>
 
-            <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 w-full sm:w-auto" onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={handleSelectFiles}
-                className="premium-secondary-button text-xs font-semibold px-5 py-2.5 rounded-xl transition-all"
+                className="premium-secondary-button text-xs font-semibold px-4 sm:px-5 py-2.5 rounded-xl transition-all w-full sm:w-auto text-center"
               >
                 Choose Images
               </button>
               <button
                 onClick={handleSelectFolder}
-                className="premium-secondary-button text-xs font-semibold px-5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all"
+                className="premium-secondary-button text-xs font-semibold px-4 sm:px-5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all w-full sm:w-auto text-center"
               >
                 <FolderClosed size={14} className="text-[#888896]" />
                 Select Folder
@@ -536,10 +536,10 @@ export default function ImageResizer() {
         </div>
       ) : (
         /* Workspace Active State */
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
           {/* Left Column: Image Previews & Statistics */}
-          <div className="w-[65%] h-full flex flex-col p-6 overflow-y-auto bg-[#0D0D10]">
-            <div className="flex items-center justify-between mb-5 shrink-0">
+          <div className="w-full lg:flex-1 h-auto lg:h-full flex flex-col p-4 sm:p-6 overflow-y-auto bg-[#0D0D10] order-2 lg:order-1">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-5 shrink-0">
               <div className="flex items-center gap-2">
                 <h2 className="text-xs font-bold text-white tracking-wider uppercase font-display text-glow">
                   Batch Queue
@@ -560,7 +560,7 @@ export default function ImageResizer() {
             </div>
 
             {/* Thumbnail Preview Grid */}
-            <div className="grid grid-cols-4 gap-4 pb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3.5 sm:gap-4 pb-8">
               {queue.map((item) => {
                 let badgeBg = 'bg-[#181822] text-[#888896] border-[#2A2A35]';
                 let badgeText = 'Waiting';
@@ -663,14 +663,14 @@ export default function ImageResizer() {
           </div>
 
           {/* Right Column: Settings & Configuration Panel */}
-          <div className="w-[35%] h-full border-l border-[#1C1C24] bg-[#121218] flex flex-col p-6 overflow-y-auto">
-            <div className="space-y-6 flex-1">
+          <div className="w-full lg:w-[360px] xl:w-[400px] shrink-0 border-t lg:border-t-0 lg:border-l border-[#1C1C24] bg-[#121218] flex flex-col p-4 sm:p-6 overflow-y-auto order-1 lg:order-2">
+            <div className="space-y-5 sm:space-y-6 flex-1">
               
               {/* Core Run Action Button */}
               <button
                 onClick={startProcessing}
                 disabled={isProcessing || queue.length === 0}
-                className="w-full py-4 rounded-xl text-white text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed premium-button"
+                className="w-full py-3.5 sm:py-4 rounded-xl text-white text-xs sm:text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed premium-button"
               >
                 {isProcessing ? (
                   <>
@@ -732,7 +732,7 @@ export default function ImageResizer() {
                   <Sliders size={13} />
                   <span>Size Settings</span>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-semibold text-[#888896]">Width (px)</label>
                     <input
@@ -773,7 +773,7 @@ export default function ImageResizer() {
                   <Settings2 size={13} />
                   <span>Target File Size</span>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <label className="text-[10px] font-semibold text-[#888896] block">Target Size (KB)</label>
                     <span className="text-xs font-mono font-semibold premium-slider-label-glow">{targetSizeKb} KB</span>
@@ -786,7 +786,7 @@ export default function ImageResizer() {
                     value={targetSizeKb}
                     onChange={(e) => setTargetSizeKb(parseInt(e.target.value))}
                     disabled={isProcessing}
-                    className="premium-slider disabled:opacity-40"
+                    className="premium-slider disabled:opacity-40 cursor-pointer"
                   />
                   <div className="flex justify-between text-[8px] font-mono text-[#888896] pt-0.5">
                     <span>10 KB</span>
@@ -802,7 +802,7 @@ export default function ImageResizer() {
             </div>
 
             {/* Downloader Footer Button */}
-            <div className="pt-6 border-t border-[#1C1C24] shrink-0 mt-6">
+            <div className="pt-4 sm:pt-6 border-t border-[#1C1C24] shrink-0 mt-4 sm:mt-6">
               <button
                 onClick={handleDownloadAll}
                 disabled={isProcessing || queue.length === 0 || successItems.length === 0 || isZipping}
@@ -828,15 +828,17 @@ export default function ImageResizer() {
 
       {/* Toast popup */}
       {showToast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#18181F] border border-[#10B981] px-5 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-slide-in">
-          <div className="bg-[#10B981]/20 text-[#10B981] p-1.5 rounded-lg">
-            <Check size={18} className="stroke-[3]" />
+        <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-md z-50 bg-[#18181F] border border-[#10B981] px-4 py-3 sm:px-5 sm:py-4 rounded-xl shadow-2xl flex items-center justify-between gap-3 animate-slide-in">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="bg-[#10B981]/20 text-[#10B981] p-1.5 rounded-lg shrink-0">
+              <Check size={18} className="stroke-[3]" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-white font-semibold text-xs sm:text-sm">Operation Complete</p>
+              <p className="text-[#888896] text-[11px] sm:text-xs mt-0.5 truncate">{showToast}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-white font-semibold text-sm">Operation Complete</p>
-            <p className="text-[#888896] text-xs mt-0.5">{showToast}</p>
-          </div>
-          <button onClick={() => setShowToast(null)} className="text-[#888896] hover:text-white ml-2">
+          <button onClick={() => setShowToast(null)} className="text-[#888896] hover:text-white p-1 shrink-0">
             <X size={15} />
           </button>
         </div>
